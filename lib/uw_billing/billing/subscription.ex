@@ -16,6 +16,12 @@ defmodule UwBilling.Billing.Subscription do
 
   json_api do
     type "subscription"
+
+    routes do
+      base "/subscriptions"
+      index :read
+      get :read
+    end
   end
 
   state_machine do

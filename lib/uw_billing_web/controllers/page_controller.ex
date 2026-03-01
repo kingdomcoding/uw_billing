@@ -1,7 +1,7 @@
 defmodule UwBillingWeb.PageController do
   use UwBillingWeb, :controller
 
-  def home(conn, _params) do
-    render(conn, :home)
+  def index(conn, _params) do
+    render(conn, :index)
   end
 end

@@ -11,6 +11,12 @@ defmodule UwBilling.Billing.Plan do
 
   json_api do
     type "plan"
+
+    routes do
+      base "/plans"
+      index :read
+      get :read
+    end
   end
 
   attributes do

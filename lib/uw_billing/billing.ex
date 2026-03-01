@@ -1,5 +1,9 @@
 defmodule UwBilling.Billing do
-  use Ash.Domain
+  use Ash.Domain, extensions: [AshJsonApi.Domain]
+
+  json_api do
+    prefix "/api/billing"
+  end
 
   resources do
     resource UwBilling.Billing.Plan do
