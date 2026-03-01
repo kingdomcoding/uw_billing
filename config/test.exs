@@ -13,7 +13,7 @@ config :uw_billing, UwBilling.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
-config :oban, testing: :inline
+config :uw_billing, Oban, testing: :inline
 
 config :uw_billing, :clickhouse,
   hostname: "localhost",

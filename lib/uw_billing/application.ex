@@ -1,31 +1,41 @@
 defmodule UwBilling.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
   @moduledoc false
 
   use Application
 
   @impl true
   def start(_type, _args) do
+    ch_config = Application.get_env(:uw_billing, :clickhouse, [])
+
+    ch_opts = [
+      name: UwBilling.CH,
+      hostname: ch_config[:hostname] || "localhost",
+      port: ch_config[:port] || 8123,
+      database: ch_config[:database] || "uw_billing",
+      pool_size: ch_config[:pool_size] || 5
+    ]
+
+    ch_opts =
+      if ch_config[:username], do: Keyword.put(ch_opts, :username, ch_config[:username]), else: ch_opts
+
+    ch_opts =
+      if ch_config[:password], do: Keyword.put(ch_opts, :password, ch_config[:password]), else: ch_opts
+
     children = [
       UwBillingWeb.Telemetry,
       UwBilling.Repo,
+      {Ch, ch_opts},
       {DNSCluster, query: Application.get_env(:uw_billing, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: UwBilling.PubSub},
-      # Start a worker by calling: UwBilling.Worker.start_link(arg)
-      # {UwBilling.Worker, arg},
-      # Start to serve requests, typically the last entry
+      UwBilling.Usage.BufferServer,
+      {Oban, Application.fetch_env!(:uw_billing, Oban)},
       UwBillingWeb.Endpoint
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: UwBilling.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
     UwBillingWeb.Endpoint.config_change(changed, removed)

@@ -25,7 +25,7 @@ config :uw_billing, ash_domains: [
   UwBilling.Config
 ]
 
-config :oban,
+config :uw_billing, Oban,
   engine: Oban.Engines.Basic,
   queues: [billing: 10, analytics: 5],
   plugins: [
