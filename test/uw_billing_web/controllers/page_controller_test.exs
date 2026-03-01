@@ -1,8 +1,8 @@
 defmodule UwBillingWeb.PageControllerTest do
   use UwBillingWeb.ConnCase
 
-  test "GET /", %{conn: conn} do
+  test "GET / serves the SPA shell", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
+    assert html_response(conn, 200) =~ ~s(<div id="app"></div>)
   end
 end
