@@ -79,12 +79,12 @@ gives the flush enough time to complete.
 ```bash
 docker compose up -d
 mix deps.get
-mix ash.setup          # creates DB, runs Ash migrations, seeds plans + demo user
-cd assets && npm install
+cd assets && npm install && cd ..
+mix setup              # creates DB, runs migrations, seeds plans + demo user, builds assets
 mix phx.server         # http://localhost:4000
 ```
 
-`mix ash.setup` prints the seeded demo user's API key. Copy it.
+`mix setup` prints the seeded demo user's API key. Copy it.
 
 Open [http://localhost:4000](http://localhost:4000) — you'll land on `/setup`.
 

@@ -1,7 +1,9 @@
-# Run via: mix run priv/repo/seeds.exs
-# Idempotent: skips plans that already exist.
+# Run via: mix run priv/repo/seeds.exs  (or automatically via mix setup)
+# Idempotent: skips records that already exist.
 
-alias UwBilling.Billing
+alias UwBilling.{Accounts, Billing}
+
+# ── Plans ────────────────────────────────────────────────────────────────────
 
 plans = [
   %{
@@ -38,3 +40,29 @@ Enum.each(plans, fn attrs ->
 end)
 
 IO.puts("Seeded #{length(plans)} plans.")
+
+# ── Demo user ─────────────────────────────────────────────────────────────────
+
+demo_email = "demo@unusualwhales.dev"
+
+demo_user =
+  case Accounts.create_user(%{email: demo_email}) do
+    {:ok, user} ->
+      user
+
+    {:error, _} ->
+      # User already exists — fetch via filtered read
+      UwBilling.Accounts.User
+      |> Ash.Query.filter(email == ^demo_email)
+      |> Ash.read!(domain: Accounts)
+      |> hd()
+  end
+
+IO.puts("""
+
+Demo user ready:
+  email:   #{demo_user.email}
+  api_key: #{demo_user.api_key}
+
+Paste the api_key into the nav bar input at http://localhost:4000
+""")
