@@ -18,6 +18,13 @@ config :ash, :domains, [
   UwBilling.Config
 ]
 
+config :uw_billing, ash_domains: [
+  UwBilling.Accounts,
+  UwBilling.Billing,
+  UwBilling.Congress,
+  UwBilling.Config
+]
+
 config :oban,
   engine: Oban.Engines.Basic,
   queues: [billing: 10, analytics: 5],
