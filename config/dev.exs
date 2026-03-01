@@ -10,6 +10,12 @@ config :uw_billing, UwBilling.Repo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
+config :uw_billing, :clickhouse,
+  hostname: "localhost",
+  port: 8123,
+  database: "uw_billing_dev",
+  pool_size: 5
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

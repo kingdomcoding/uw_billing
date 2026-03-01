@@ -55,6 +55,14 @@ if config_env() == :prod do
 
   config :uw_billing, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  config :uw_billing, :clickhouse,
+    hostname: System.get_env("CLICKHOUSE_HOST") || "localhost",
+    port: String.to_integer(System.get_env("CLICKHOUSE_PORT") || "8123"),
+    database: System.get_env("CLICKHOUSE_DB") || "uw_billing",
+    username: System.get_env("CLICKHOUSE_USER"),
+    password: System.get_env("CLICKHOUSE_PASS"),
+    pool_size: String.to_integer(System.get_env("CLICKHOUSE_POOL_SIZE") || "5")
+
   config :uw_billing, UwBillingWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

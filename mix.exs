@@ -62,7 +62,18 @@ defmodule UwBilling.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:ash, "~> 3.4"},
+      {:ash_postgres, "~> 2.4"},
+      {:ash_phoenix, "~> 2.2"},
+      {:ash_state_machine, "~> 0.2"},
+      {:ash_oban, "~> 0.2"},
+      {:ash_json_api, "~> 1.4"},
+      {:oban, "~> 2.18"},
+      {:stripity_stripe, "~> 3.1"},
+      {:ch, "~> 0.3"},
+      {:req, "~> 0.5"},
+      {:ex_machina, "~> 2.7", only: :test}
     ]
   end
 

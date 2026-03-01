@@ -11,6 +11,28 @@ config :uw_billing,
   ecto_repos: [UwBilling.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :ash, :domains, [
+  UwBilling.Accounts,
+  UwBilling.Billing,
+  UwBilling.Congress,
+  UwBilling.Config
+]
+
+config :oban,
+  engine: Oban.Engines.Basic,
+  queues: [billing: 10, analytics: 5],
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 604_800},
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 */6 * * *", UwBilling.Workers.CongressTradePoller}
+     ]}
+  ],
+  repo: UwBilling.Repo
+
+config :stripity_stripe,
+  api_key: System.get_env("STRIPE_SECRET_KEY")
+
 # Configures the endpoint
 config :uw_billing, UwBillingWeb.Endpoint,
   url: [host: "localhost"],
@@ -27,9 +49,9 @@ config :esbuild,
   version: "0.25.4",
   uw_billing: [
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.tsx --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    env: %{"NODE_PATH" => Path.expand("../assets/node_modules", __DIR__)}
   ]
 
 # Configure tailwind (the version is required)
