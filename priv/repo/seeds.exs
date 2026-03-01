@@ -51,11 +51,9 @@ demo_user =
       user
 
     {:error, _} ->
-      # User already exists — fetch via filtered read
-      UwBilling.Accounts.User
-      |> Ash.Query.filter(email == ^demo_email)
-      |> Ash.read!(domain: Accounts)
-      |> hd()
+      # User already exists — list all and match by email
+      {:ok, users} = Accounts.list_users()
+      Enum.find(users, fn u -> to_string(u.email) == demo_email end)
   end
 
 IO.puts("""

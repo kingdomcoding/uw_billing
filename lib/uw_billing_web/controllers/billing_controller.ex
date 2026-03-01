@@ -9,21 +9,21 @@ defmodule UwBillingWeb.BillingController do
   end
 
   def subscription(conn, _params) do
-    case UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id) do
+    case fetch_active_sub(conn) do
       {:ok, sub} -> json(conn, serialize_subscription(sub))
       {:error, _} -> json(conn, nil)
     end
   end
 
   def invoices(conn, _params) do
-    case UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id) do
-      {:ok, sub} when not is_nil(sub) ->
+    case fetch_active_sub(conn) do
+      {:ok, sub} ->
         case UwBilling.Billing.get_invoices_for_subscription(sub.id) do
           {:ok, invs} -> json(conn, Enum.map(invs, &serialize_invoice/1))
           {:error, _} -> json(conn, [])
         end
 
-      _ ->
+      {:error, _} ->
         json(conn, [])
     end
   end
@@ -31,7 +31,7 @@ defmodule UwBillingWeb.BillingController do
   def change_plan(conn, %{"plan_id" => plan_id} = params) do
     immediate = Map.get(params, "immediate", false)
 
-    with {:ok, sub} <- UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id),
+    with {:ok, sub} <- fetch_active_sub(conn),
          {:ok, updated} <- UwBilling.Billing.change_plan(sub, plan_id, immediate) do
       json(conn, serialize_subscription(updated))
     else
@@ -41,7 +41,7 @@ defmodule UwBillingWeb.BillingController do
   end
 
   def pause(conn, _params) do
-    with {:ok, sub} <- UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id),
+    with {:ok, sub} <- fetch_active_sub(conn),
          {:ok, updated} <- UwBilling.Billing.pause_subscription(sub) do
       json(conn, serialize_subscription(updated))
     else
@@ -51,7 +51,7 @@ defmodule UwBillingWeb.BillingController do
   end
 
   def resume(conn, _params) do
-    with {:ok, sub} <- UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id),
+    with {:ok, sub} <- fetch_active_sub(conn),
          {:ok, updated} <- UwBilling.Billing.resume_subscription(sub) do
       json(conn, serialize_subscription(updated))
     else
@@ -61,12 +61,20 @@ defmodule UwBillingWeb.BillingController do
   end
 
   def cancel(conn, _params) do
-    with {:ok, sub} <- UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id),
+    with {:ok, sub} <- fetch_active_sub(conn),
          {:ok, _} <- UwBilling.Billing.cancel_subscription(sub) do
       send_resp(conn, 204, "")
     else
       {:error, error} ->
         conn |> put_status(422) |> json(%{error: inspect(error)})
+    end
+  end
+
+  defp fetch_active_sub(conn) do
+    case UwBilling.Billing.get_active_subscription(conn.assigns.current_user_id) do
+      {:ok, [sub | _]} -> {:ok, sub}
+      {:ok, []}        -> {:error, :no_subscription}
+      {:error, _} = err -> err
     end
   end
 

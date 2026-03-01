@@ -23,8 +23,12 @@ defmodule UwBillingWeb.UsageController do
   def monthly_summary(conn, _params) do
     user_id = conn.assigns.current_user_id
 
-    with {:ok, count} <- ClickHouse.monthly_count(user_id),
-         {:ok, sub} <- UwBilling.Billing.get_active_subscription(user_id) do
+    sub = case UwBilling.Billing.get_active_subscription(user_id) do
+      {:ok, [s | _]} -> s
+      _              -> nil
+    end
+
+    with {:ok, count} <- ClickHouse.monthly_count(user_id) do
       limit = sub && sub.plan && sub.plan.api_request_limit
       near_limit = limit != nil && count >= limit * 0.8
 

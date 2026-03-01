@@ -11,7 +11,7 @@ defmodule UwBillingWeb.Router do
   end
 
   pipeline :api do
-    plug :accepts, ["json"]
+    plug :accepts, ["json", "json-api"]
     plug UwBillingWeb.Plugs.ApiUsageLogger
   end
 

@@ -11,6 +11,8 @@ config :uw_billing,
   ecto_repos: [UwBilling.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :mime, :types, %{"application/vnd.api+json" => ["json-api"]}
+
 config :ash, :domains, [
   UwBilling.Accounts,
   UwBilling.Billing,

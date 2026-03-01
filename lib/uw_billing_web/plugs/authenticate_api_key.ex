@@ -25,8 +25,9 @@ defmodule UwBillingWeb.Plugs.AuthenticateApiKey do
 
   defp get_subscription(user_id) do
     case UwBilling.Billing.get_active_subscription(user_id) do
-      {:ok, sub} -> {:ok, sub}
-      {:error, _} -> {:ok, nil}
+      {:ok, [sub | _]} -> {:ok, sub}
+      {:ok, []}        -> {:ok, nil}
+      {:error, _}      -> {:ok, nil}
     end
   end
 end
