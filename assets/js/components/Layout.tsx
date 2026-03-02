@@ -49,13 +49,13 @@ export default function Layout() {
           )
         })}
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-400">API Key:</span>
+          <span className="text-xs text-gray-500">API Key:</span>
           <input
             type="text"
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
             placeholder="Paste X-Api-Key here"
-            className="text-xs border border-gray-200 rounded px-2 py-1 w-56 font-mono"
+            className="text-xs text-gray-900 bg-white border border-gray-200 rounded px-2 py-1 w-56 font-mono"
           />
         </div>
       </nav>

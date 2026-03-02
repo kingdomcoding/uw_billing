@@ -38,7 +38,7 @@ export default function TradesPage() {
             onChange={e => setFilterTicker(e.target.value.toUpperCase())}
             onKeyDown={e => e.key === "Enter" && searchTicker()}
             placeholder="Filter by ticker…"
-            className="text-sm border border-gray-200 rounded px-3 py-1.5 w-40 font-mono uppercase"
+            className="text-sm text-gray-900 bg-white border border-gray-200 rounded px-3 py-1.5 w-40 font-mono uppercase"
           />
           <button onClick={searchTicker}
             className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700">
@@ -58,8 +58,8 @@ export default function TradesPage() {
                   api.tradesByTicker(s.ticker).then(t => setTrades(t ?? []))
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs hover:bg-blue-50 hover:border-blue-300">
-                <span className="font-mono font-semibold">{s.ticker}</span>
-                <span className="text-gray-400">{s.trades}</span>
+                <span className="font-mono font-semibold text-gray-900">{s.ticker}</span>
+                <span className="text-gray-500">{s.trades}</span>
               </button>
             ))}
           </div>
@@ -96,7 +96,7 @@ export default function TradesPage() {
         )}
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Data sourced via the Unusual Whales API (or EDGAR EFTS as fallback).
         Polled every 6 hours via Oban cron. STOCK Act requires disclosure within 45 days of trade.
       </p>

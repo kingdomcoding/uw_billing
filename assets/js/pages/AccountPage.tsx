@@ -28,21 +28,21 @@ export default function AccountPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
         <div>
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Email</div>
-          <div className="text-sm">{account?.email}</div>
+          <div className="text-sm text-gray-900">{account?.email}</div>
         </div>
         <div>
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">API Key</div>
           <div className="flex items-center gap-2">
-            <code className="text-xs bg-gray-50 border border-gray-200 rounded px-3 py-2 flex-1 font-mono truncate">
+            <code className="text-xs text-gray-900 bg-gray-50 border border-gray-200 rounded px-3 py-2 flex-1 font-mono truncate">
               {account?.api_key}
             </code>
             <button
               onClick={copyKey}
-              className="text-xs px-3 py-2 border border-gray-200 rounded hover:bg-gray-50 shrink-0">
+              className="text-xs text-gray-700 px-3 py-2 border border-gray-200 rounded hover:bg-gray-50 shrink-0">
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             Pass this as the <code className="font-mono">X-Api-Key</code> header on all API requests.
           </p>
         </div>

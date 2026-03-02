@@ -202,8 +202,8 @@ export default function SetupPage() {
               value={form[field]}
               onChange={set(field)}
               placeholder={placeholder}
-              className={`w-full text-sm border rounded px-3 py-2 font-mono ${
-                errors[field] ? "border-red-400 bg-red-50" : "border-gray-200"
+              className={`w-full text-sm text-gray-900 border rounded px-3 py-2 font-mono ${
+                errors[field] ? "border-red-400 bg-red-50" : "border-gray-200 bg-white"
               }`}
             />
             {errors[field] && (
@@ -232,7 +232,7 @@ export default function SetupPage() {
         <SubscribePanel onDone={() => navigate("/billing")} />
       )}
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         In a real deployment these credentials would be environment variables managed as secrets.
         This page exists solely for demo convenience — it lets reviewers use their own Stripe
         test account without modifying server configuration.

@@ -36,7 +36,7 @@ export default function InvoicesPage() {
             <tbody>
               {(invoices ?? []).map((inv, i) => (
                 <tr key={inv.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="p-4 font-mono text-xs text-gray-400">{inv.stripe_invoice_id}</td>
+                  <td className="p-4 font-mono text-xs text-gray-600">{inv.stripe_invoice_id}</td>
                   <td className="p-4 text-right font-medium">
                     ${(inv.amount_cents / 100).toFixed(2)}
                   </td>

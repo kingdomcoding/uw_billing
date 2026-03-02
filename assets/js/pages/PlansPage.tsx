@@ -43,12 +43,12 @@ export default function PlansPage() {
               className={`bg-white rounded-lg border p-6 flex flex-col gap-4 ${
                 isCurrent ? "border-blue-400 ring-1 ring-blue-400" : "border-gray-200"}`}>
               <div>
-                <div className="text-lg font-semibold capitalize">{plan.name}</div>
-                <div className="text-2xl font-bold mt-1">
+                <div className="text-lg font-semibold capitalize text-gray-900">{plan.name}</div>
+                <div className="text-2xl font-bold text-gray-900 mt-1">
                   {plan.amount_cents === 0
                     ? "Free"
                     : `$${(plan.amount_cents / 100).toFixed(0)}`}
-                  {plan.interval && <span className="text-sm font-normal text-gray-400"> /{plan.interval}</span>}
+                  {plan.interval && <span className="text-sm font-normal text-gray-500"> /{plan.interval}</span>}
                 </div>
               </div>
               <ul className="text-sm text-gray-600 space-y-1 flex-1">
@@ -75,7 +75,7 @@ export default function PlansPage() {
           )
         })}
       </div>
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Upgrades take effect immediately (Stripe prorates the difference).
         Downgrades take effect at the end of your current billing period.
       </p>

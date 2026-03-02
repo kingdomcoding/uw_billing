@@ -73,25 +73,25 @@ export default function UsagePage() {
       {latency && (
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
-            <div className="text-3xl font-bold">{latency.p50}ms</div>
+            <div className="text-3xl font-bold text-gray-900">{latency.p50}ms</div>
             <div className="text-sm text-gray-500 mt-1">Median (P50)</div>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
-            <div className="text-3xl font-bold">{latency.p95}ms</div>
+            <div className="text-3xl font-bold text-gray-900">{latency.p95}ms</div>
             <div className="text-sm text-gray-500 mt-1">95th percentile (P95)</div>
           </div>
         </div>
       )}
 
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-base font-semibold mb-4">Daily requests — last 30 days</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Daily requests — last 30 days</h2>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={dailyFormatted} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, backgroundColor: "#fff", color: "#111827" }} />
+            <Legend wrapperStyle={{ fontSize: 12, color: "#374151" }} />
             <Bar dataKey="total" name="Requests" fill="#3b82f6" radius={[2, 2, 0, 0]} />
             <Bar dataKey="errors" name="Errors" fill="#f87171" radius={[2, 2, 0, 0]} />
           </BarChart>
@@ -99,7 +99,7 @@ export default function UsagePage() {
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-base font-semibold mb-4">Top endpoints this month</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Top endpoints this month</h2>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie data={pieData} dataKey="total" nameKey="endpoint" cx="50%" cy="50%" outerRadius={100}
@@ -108,7 +108,7 @@ export default function UsagePage() {
               labelLine={false}>
               {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
             </Pie>
-            <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+            <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, backgroundColor: "#fff", color: "#111827" }}
               formatter={(v: number) => [v.toLocaleString(), "requests"]} />
           </PieChart>
         </ResponsiveContainer>

@@ -50,7 +50,7 @@ export default function BillingPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-lg font-semibold">{sub.plan.name} plan</div>
+            <div className="text-lg font-semibold text-gray-900">{sub.plan.name} plan</div>
             <div className="text-sm text-gray-500">
               {sub.plan.amount_cents === 0
                 ? "Free"
@@ -92,14 +92,14 @@ export default function BillingPage() {
             Change plan
           </Link>
           <Link to="/billing/invoices"
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded hover:bg-gray-50">
+            className="px-3 py-1.5 text-sm text-gray-700 border border-gray-200 rounded hover:bg-gray-50">
             Invoice history
           </Link>
           {sub.status === "active" && (
             <button
               disabled={acting}
               onClick={() => action(() => api.pauseSub())}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50">
+              className="px-3 py-1.5 text-sm text-gray-700 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50">
               Pause subscription
             </button>
           )}
