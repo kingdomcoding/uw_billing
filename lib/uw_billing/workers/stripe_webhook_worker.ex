@@ -142,6 +142,7 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
     end
   end
 
+  defp dispatch("invoice.finalized", %{"subscription" => nil}), do: :ok
   defp dispatch("invoice.finalized", payload) do
     case find_subscription(payload["subscription"]) do
       {:ok, sub} ->
@@ -154,10 +155,12 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
         }) |> ok_or_error()
 
       {:error, :not_found} ->
-        :ok
+        # subscription.created may not have been processed yet — retry shortly
+        {:snooze, 30}
     end
   end
 
+  defp dispatch("invoice.paid", %{"subscription" => nil}), do: :ok
   defp dispatch("invoice.paid", payload) do
     with {:ok, sub}     <- find_subscription(payload["subscription"]),
          {:ok, invoice} <- Billing.upsert_invoice(%{
@@ -168,7 +171,7 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
          }) do
       Billing.mark_invoice_paid(invoice) |> ok_or_error()
     else
-      {:error, :not_found} -> :ok
+      {:error, :not_found} -> {:snooze, 30}
       {:error, reason}     -> {:error, inspect(reason)}
     end
   end

@@ -11,6 +11,24 @@ interface State {
   actionError: string | null
 }
 
+function DemoCard({ full = false }: { full?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 text-sm bg-gray-50 border border-gray-100 rounded px-3 py-2">
+      <span className="font-bold text-xs bg-blue-700 text-white rounded px-1.5 py-0.5 tracking-wide shrink-0">VISA</span>
+      {full ? (
+        <>
+          <span className="font-mono text-gray-700 tracking-widest">4242 4242 4242 4242</span>
+          <span className="text-gray-400 font-mono text-xs">12/34</span>
+          <span className="text-gray-400 font-mono text-xs">123</span>
+        </>
+      ) : (
+        <span className="font-mono text-gray-600">•••• •••• •••• 4242</span>
+      )}
+      <span className="ml-auto text-xs text-gray-400 shrink-0">Stripe test card</span>
+    </div>
+  )
+}
+
 export default function BillingPage() {
   const [state, setState] = useState<State>({
     plans: [], sub: null, invoices: [], loading: true, error: null, actionError: null
@@ -83,8 +101,11 @@ export default function BillingPage() {
       {/* ── Current subscription ─────────────────────────────── */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         {!sub ? (
-          <div className="text-sm text-gray-500">
-            No active subscription. Select a plan below to get started.
+          <div className="space-y-3">
+            <div className="text-sm text-gray-500">
+              No active subscription. Select a plan below to get started.
+            </div>
+            <DemoCard full />
           </div>
         ) : (
           <div className="space-y-4">
@@ -130,6 +151,8 @@ export default function BillingPage() {
                 </button>
               </div>
             )}
+
+            <DemoCard />
 
             <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
               {sub.status === "active" && (
