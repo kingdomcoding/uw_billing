@@ -26,6 +26,7 @@ defmodule UwBilling.Billing do
       define :change_plan, action: :change_plan, args: [:plan_id, :immediate]
       define :apply_scheduled_plan, action: :apply_scheduled_plan
       define :sync_subscription_with_stripe, action: :sync_with_stripe
+      define :update_subscription_periods, action: :update_periods
       define :get_active_subscription, action: :active_for_user, args: [:user_id]
       define :get_subscription_by_stripe_id, action: :by_stripe_id, args: [:stripe_subscription_id]
     end

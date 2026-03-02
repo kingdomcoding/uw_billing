@@ -46,8 +46,8 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
         plan_id:                plan.id,
         stripe_subscription_id: payload["id"],
         stripe_customer_id:     payload["customer"],
-        current_period_start:   parse_unix(payload["current_period_start"]),
-        current_period_end:     parse_unix(payload["current_period_end"]),
+        current_period_start:   parse_unix(extract_period_start(payload)),
+        current_period_end:     parse_unix(extract_period_end(payload)),
         trial_end:              parse_unix(payload["trial_end"]),
         cancel_at_period_end:   payload["cancel_at_period_end"] || false
       }) do
@@ -69,20 +69,23 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
          {:ok, plan} <- find_plan(payload) do
       new_status = infer_initial_status(payload["status"], payload["trial_end"])
 
-      activate_attrs = %{
-        plan_id:            plan.id,
-        current_period_end: parse_unix(payload["current_period_end"])
+      period_attrs = %{
+        plan_id:              plan.id,
+        current_period_start: parse_unix(extract_period_start(payload)),
+        current_period_end:   parse_unix(extract_period_end(payload)),
+        cancel_at_period_end: payload["cancel_at_period_end"] || false
       }
 
       result =
         case {sub.status, new_status} do
-          {s, s}         -> {:ok, sub}
-          {_, :active}   -> Billing.activate_subscription(sub, activate_attrs)
-          {_, :past_due} -> Billing.fail_payment(sub)
-          {_, :canceled} -> Billing.cancel_subscription(sub)
-          {_, :paused}   -> Billing.pause_subscription(sub)
-          {_, :trialing} -> Billing.start_trial(sub)
-          _              -> {:ok, sub}
+          {:active, :active} -> Billing.update_subscription_periods(sub, period_attrs)
+          {s, s}             -> {:ok, sub}
+          {_, :active}       -> Billing.activate_subscription(sub, period_attrs)
+          {_, :past_due}     -> Billing.fail_payment(sub)
+          {_, :canceled}     -> Billing.cancel_subscription(sub)
+          {_, :paused}       -> Billing.pause_subscription(sub)
+          {_, :trialing}     -> Billing.start_trial(sub)
+          _                  -> {:ok, sub}
         end
 
       case result do
@@ -217,6 +220,16 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
   defp infer_initial_status("paused",   _),                              do: :paused
   defp infer_initial_status("unpaid",   _),                              do: :past_due
   defp infer_initial_status(_, _),                                       do: :active
+
+  # Stripe API 2025+ moved current_period_start/end to items[0] in some event types.
+  # Fall back to items when the top-level fields are absent.
+  defp extract_period_start(%{"current_period_start" => ts}) when not is_nil(ts), do: ts
+  defp extract_period_start(payload),
+    do: get_in(payload, ["items", "data", Access.at(0), "current_period_start"])
+
+  defp extract_period_end(%{"current_period_end" => ts}) when not is_nil(ts), do: ts
+  defp extract_period_end(payload),
+    do: get_in(payload, ["items", "data", Access.at(0), "current_period_end"])
 
   defp parse_unix(nil), do: nil
   defp parse_unix(ts) when is_integer(ts), do: DateTime.from_unix!(ts) |> DateTime.truncate(:second)

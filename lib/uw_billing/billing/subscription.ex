@@ -218,6 +218,11 @@ defmodule UwBilling.Billing.Subscription do
       end
     end
 
+    update :update_periods do
+      require_atomic? false
+      accept [:current_period_start, :current_period_end, :plan_id, :cancel_at_period_end]
+    end
+
     update :apply_scheduled_plan do
       require_atomic? false
 
