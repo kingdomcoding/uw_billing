@@ -13,8 +13,12 @@ function RootRedirect() {
   const [dest, setDest] = useState<string | null>(null)
 
   useEffect(() => {
-    api.setupStatus()
-      .then(({ configured }) => setDest(configured ? "/dashboard" : "/setup"))
+    Promise.all([api.setupStatus(), api.subscription()])
+      .then(([{ configured }, sub]) => {
+        if (!configured) setDest("/setup")
+        else if (!sub)   setDest("/setup")
+        else             setDest("/dashboard")
+      })
       .catch(() => setDest("/setup"))
   }, [])
 

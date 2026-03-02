@@ -4,12 +4,13 @@ import { api, AccountInfo } from "../api"
 export default function AccountPage() {
   const [account, setAccount] = useState<AccountInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     api.account()
       .then(a => { setAccount(a); setLoading(false) })
-      .catch(() => setLoading(false))
+      .catch(() => { setError(true); setLoading(false) })
   }, [])
 
   const copyKey = () => {
@@ -21,6 +22,7 @@ export default function AccountPage() {
   }
 
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
+  if (error)   return <div className="p-8 text-sm text-red-500">Failed to load account.</div>
 
   return (
     <div className="space-y-6">

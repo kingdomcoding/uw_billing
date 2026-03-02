@@ -16,7 +16,6 @@ export default function BillingPage() {
     plans: [], sub: null, invoices: [], loading: true, error: null, actionError: null
   })
   const [acting, setActing] = useState<string | null>(null)
-  const [bootstrapping, setBootstrapping] = useState(false)
 
   const load = (): Promise<SubscriptionInfo | null> =>
     Promise.all([api.listPlans(), api.subscription(), api.invoices()])
@@ -29,29 +28,7 @@ export default function BillingPage() {
         return null
       })
 
-  const maybeBootstrap = async () => {
-    setBootstrapping(true)
-    try {
-      await api.demoSubscribe()
-      for (let i = 0; i < 15; i++) {
-        await new Promise(r => setTimeout(r, 2000))
-        const sub = await api.subscription()
-        if (sub) {
-          await load()
-          return
-        }
-      }
-      await load()
-    } catch (_) {
-      await load()
-    } finally {
-      setBootstrapping(false)
-    }
-  }
-
-  useEffect(() => {
-    load().then(sub => { if (!sub) maybeBootstrap() })
-  }, [])
+  useEffect(() => { load() }, [])
 
   const doAction = async (key: string, fn: () => Promise<SubscriptionInfo | void>) => {
     setActing(key)
@@ -69,12 +46,8 @@ export default function BillingPage() {
   const fmt = (s: string | null) =>
     s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"
 
-  if (state.loading || bootstrapping) {
-    return (
-      <div className="p-8 text-gray-500">
-        {bootstrapping ? "Setting up your demo subscription…" : "Loading..."}
-      </div>
-    )
+  if (state.loading) {
+    return <div className="p-8 text-gray-500">Loading...</div>
   }
   if (state.error) return <div className="p-8 text-red-500">Error: {state.error}</div>
 
@@ -217,7 +190,11 @@ export default function BillingPage() {
                     <li key={k}>{String(v)}</li>
                   ))}
                 </ul>
-                {isCurrent ? (
+                {plan.tier === "free" ? (
+                  <div className="text-sm text-gray-400 font-medium text-center py-1.5">
+                    Included
+                  </div>
+                ) : isCurrent ? (
                   <div className="text-sm text-blue-600 font-medium text-center py-1.5">
                     Current plan
                   </div>

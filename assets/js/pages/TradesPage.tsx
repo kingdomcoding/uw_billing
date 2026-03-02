@@ -61,14 +61,12 @@ export default function TradesPage() {
               Clear
             </button>
           )}
-          {!isFiltered && (
-            <button
-              onClick={loadAll}
-              className="text-sm px-3 py-1.5 border border-gray-200 text-gray-600 rounded hover:bg-gray-50"
-              title="Refresh">
-              ↻
-            </button>
-          )}
+          <button
+            onClick={() => isFiltered ? searchTicker() : loadAll()}
+            className="text-sm px-3 py-1.5 border border-gray-200 text-gray-600 rounded hover:bg-gray-50"
+            title="Refresh">
+            ↻
+          </button>
         </div>
       </div>
 
@@ -81,7 +79,10 @@ export default function TradesPage() {
                 onClick={() => {
                   setFilterTicker(s.ticker)
                   setIsFiltered(true)
-                  api.tradesByTicker(s.ticker).then(t => setTrades(t ?? []))
+                  setLoading(true)
+                  api.tradesByTicker(s.ticker)
+                    .then(t => { setTrades(t ?? []); setLoading(false) })
+                    .catch(() => setLoading(false))
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs hover:bg-blue-50 hover:border-blue-300">
                 <span className="font-mono font-semibold text-gray-900">{s.ticker}</span>

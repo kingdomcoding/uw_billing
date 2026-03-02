@@ -96,9 +96,9 @@ defmodule UwBillingWeb.UsageController do
     ]
   end
 
-  defp demo_monthly_count(:pro),     do: 84_200
-  defp demo_monthly_count(:premium), do: 312_000
-  defp demo_monthly_count(_),        do: 870
+  defp demo_monthly_count("pro"),     do: 84_200
+  defp demo_monthly_count("premium"), do: 312_000
+  defp demo_monthly_count(_),         do: 870
 
   defp parse_int(str, default) when is_binary(str) do
     case Integer.parse(str) do

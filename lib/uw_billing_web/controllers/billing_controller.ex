@@ -53,7 +53,7 @@ defmodule UwBillingWeb.BillingController do
                            %{customer: cid, items: [%{price: price_id}]},
                            api_key: api_key
                          ) do
-      send_resp(conn, 202, "")
+      json(conn, %{ok: true})
     else
       nil ->
         conn |> put_status(422) |> json(%{error: "Missing Stripe customer, price, or API key"})

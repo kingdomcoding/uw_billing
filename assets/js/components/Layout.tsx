@@ -1,24 +1,25 @@
-import React, { useState, useEffect } from "react"
-import { NavLink, Outlet, Link } from "react-router-dom"
+import React, { useState, useEffect, useCallback } from "react"
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom"
 import { api, StripeConfigStatus } from "../api"
 
-const navLinks = [
-  { to: "/setup",            label: "Setup" },
-  { to: "/dashboard",        label: "Usage" },
-  { to: "/billing",          label: "Billing" },
-  { to: "/trades",           label: "Congress" },
-  { to: "/account",          label: "Account" },
+const ALL_NAV = [
+  { to: "/setup",     label: "Setup" },
+  { to: "/dashboard", label: "Usage" },
+  { to: "/billing",   label: "Billing" },
+  { to: "/trades",    label: "Congress" },
+  { to: "/account",   label: "Account" },
 ]
 
 export default function Layout() {
-  const [apiKey, setApiKey] = useState(localStorage.getItem("uw_api_key") ?? "")
-  const [email, setEmail] = useState<string | null>(null)
+  const [apiKey, setApiKey]             = useState(localStorage.getItem("uw_api_key") ?? "")
+  const [email, setEmail]               = useState<string | null>(null)
   const [stripeStatus, setStripeStatus] = useState<StripeConfigStatus | null>(null)
-  const [ready, setReady] = useState(false)
+  const [ready, setReady]               = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     const stored = localStorage.getItem("uw_api_key") ?? ""
-
     const refreshFromDemo = () =>
       api.demoSession()
         .then(({ api_key, email: e }) => {
@@ -31,10 +32,7 @@ export default function Layout() {
 
     if (stored) {
       api.account()
-        .then(info => {
-          setEmail(info.email)
-          setReady(true)
-        })
+        .then(info => { setEmail(info.email); setReady(true) })
         .catch(() => {
           localStorage.removeItem("uw_api_key")
           setApiKey("")
@@ -45,17 +43,26 @@ export default function Layout() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!apiKey) return
+  const refreshStripe = useCallback(() => {
     api.stripeConfig()
       .then(setStripeStatus)
       .catch(() => setStripeStatus({ configured: false, env_configured: false, custom_configured: false }))
-  }, [apiKey])
+  }, [])
+
+  useEffect(() => {
+    if (!apiKey) return
+    refreshStripe()
+  }, [apiKey, refreshStripe])
+
+  useEffect(() => {
+    if (stripeStatus === null) return
+    if (!stripeStatus.configured && location.pathname !== "/setup") {
+      navigate("/setup", { replace: true })
+    }
+  }, [stripeStatus, location.pathname, navigate])
 
   const stripeOk = stripeStatus?.configured === true
-  const setupTitle = stripeOk
-    ? "Stripe configured"
-    : "Stripe not configured — billing features disabled"
+  const navLinks = stripeOk ? ALL_NAV : ALL_NAV.slice(0, 1)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,31 +78,19 @@ export default function Layout() {
             >
               {label}
               {isSetup && stripeStatus !== null && (
-                <span
-                  title={setupTitle}
-                  className={`w-2 h-2 rounded-full cursor-help ${stripeOk ? "bg-green-500" : "bg-amber-500"}`}
-                />
+                <span className={`w-2 h-2 rounded-full ${stripeOk ? "bg-green-500" : "bg-amber-500"}`} />
               )}
             </NavLink>
           )
         })}
-        {email && (
-          <div className="ml-auto text-xs text-gray-500 font-mono">{email}</div>
-        )}
+        {email && <div className="ml-auto text-xs text-gray-500 font-mono">{email}</div>}
       </nav>
 
-      {stripeStatus !== null && !stripeOk && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center gap-3 text-sm text-amber-800">
-          <span className="font-medium">Stripe credentials not configured.</span>
-          <span className="text-amber-700">Billing features won't work until setup is complete.</span>
-          <Link to="/setup" className="ml-auto font-medium underline hover:text-amber-900">
-            Go to Setup →
-          </Link>
-        </div>
-      )}
-
       <main className="max-w-5xl mx-auto p-6">
-        {ready ? <Outlet /> : null}
+        {ready
+          ? <Outlet context={{ refreshStripe }} />
+          : <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading…</div>
+        }
       </main>
     </div>
   )

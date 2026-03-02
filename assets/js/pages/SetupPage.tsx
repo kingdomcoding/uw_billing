@@ -1,33 +1,57 @@
-import React, { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import React, { useEffect, useState, useRef } from "react"
+import { useNavigate, useOutletContext } from "react-router-dom"
 import { api, StripeCredentials, StripeConfigStatus } from "../api"
 
-interface FormState {
-  secret_key: string
-  webhook_secret: string
-}
-
-interface FieldErrors { [k: string]: string }
+type OutletCtx = { refreshStripe: () => void }
+type FormState = { secret_key: string; webhook_secret: string }
+type ProvState = "idle" | "provisioning" | "done" | "timeout"
 
 export default function SetupPage() {
   const navigate = useNavigate()
-  const [status, setStatus]         = useState<StripeConfigStatus | null>(null)
-  const [form, setForm]             = useState<FormState>({ secret_key: "", webhook_secret: "" })
-  const [errors, setErrors]         = useState<FieldErrors>({})
-  const [submitting, setSubmitting] = useState(false)
-  const [disabling, setDisabling]   = useState(false)
+  const { refreshStripe } = useOutletContext<OutletCtx>()
+
+  const [status, setStatus]           = useState<StripeConfigStatus | null>(null)
+  const [form, setForm]               = useState<FormState>({ secret_key: "", webhook_secret: "" })
+  const [errors, setErrors]           = useState<Record<string, string>>({})
+  const [submitting, setSubmitting]   = useState(false)
+  const [disabling, setDisabling]     = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
-  const [demoCustomerId, setDemoCustomerId] = useState<string | null>(null)
+  const [prov, setProv]               = useState<ProvState>("idle")
+  const [elapsed, setElapsed]         = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const load = () =>
-    api.stripeConfig().then(s => {
-      setStatus(s)
-    }).catch(() => {})
-
+  const load = () => api.stripeConfig().then(setStatus).catch(() => {})
   useEffect(() => { load() }, [])
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }))
+
+  const runProvision = async () => {
+    const existing = await api.subscription().catch(() => null)
+    if (existing) { navigate("/billing"); return }
+
+    setProv("provisioning")
+    setElapsed(0)
+    timerRef.current = setInterval(() => setElapsed(n => n + 1), 1000)
+    try {
+      await api.demoSubscribe()
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000))
+        const sub = await api.subscription()
+        if (sub) {
+          setProv("done")
+          clearInterval(timerRef.current!)
+          setTimeout(() => navigate("/billing"), 1200)
+          return
+        }
+      }
+      setProv("timeout")
+    } catch {
+      setProv("timeout")
+    } finally {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,8 +61,9 @@ export default function SetupPage() {
     try {
       const result = await api.verifyStripe(form as StripeCredentials)
       if ("configured" in result && result.configured) {
-        setDemoCustomerId(result.stripe_customer_id ?? null)
+        refreshStripe()
         await load()
+        await runProvision()
       } else if ("errors" in result) {
         setErrors(result.errors)
       }
@@ -53,6 +78,7 @@ export default function SetupPage() {
     setDisabling(true)
     try {
       await api.disableStripe()
+      refreshStripe()
       await load()
     } catch (err) {
       setGlobalError((err as Error).message ?? "Failed to revert credentials")
@@ -61,18 +87,67 @@ export default function SetupPage() {
     }
   }
 
+  if (prov === "provisioning" || prov === "done") {
+    return (
+      <div className="max-w-2xl">
+        <div className="bg-white rounded-lg border border-gray-200 p-10 text-center space-y-4">
+          {prov === "done" ? (
+            <>
+              <div className="text-4xl text-green-500">✓</div>
+              <p className="text-base font-semibold text-gray-900">Subscription ready!</p>
+              <p className="text-sm text-gray-500">Taking you to Billing…</p>
+            </>
+          ) : (
+            <>
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-sm font-medium text-gray-900">Setting up your demo subscription…</p>
+              <p className="text-xs text-gray-400">{elapsed}s</p>
+              {elapsed >= 10 && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  Waiting for Stripe webhook —{" "}
+                  make sure <code className="font-mono">stripe listen --forward-to {window.location.origin}/webhooks/stripe</code>{" "}
+                  is running.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (prov === "timeout") {
+    return (
+      <div className="max-w-2xl">
+        <div className="bg-amber-50 rounded-lg border border-amber-200 p-6 space-y-3">
+          <p className="text-sm font-semibold text-amber-800">Subscription setup timed out</p>
+          <p className="text-sm text-amber-700">
+            Credentials were saved but the webhook didn't confirm within 30s.
+            Make sure <code className="font-mono bg-amber-100 px-1 rounded">stripe listen</code> is
+            running, then navigate to Billing — it will pick up the subscription automatically.
+          </p>
+          <button
+            onClick={() => navigate("/billing")}
+            className="px-4 py-2 text-sm bg-amber-700 text-white rounded hover:bg-amber-800">
+            Go to Billing →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const envConfigured    = status?.env_configured    === true
   const customConfigured = status?.custom_configured === true
   const revertAvailable  = customConfigured && envConfigured
-
-  const webhookUrl = `${window.location.origin}/webhooks/stripe`
+  const webhookUrl       = `${window.location.origin}/webhooks/stripe`
 
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Stripe Setup</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Enter your Stripe test credentials. Pro and Premium products will be created in your account automatically.
+          Enter your Stripe test credentials. Pro and Premium products will be created
+          in your account automatically.
         </p>
       </div>
 
@@ -88,11 +163,9 @@ export default function SetupPage() {
           </div>
           {revertAvailable && (
             <button
-              type="button"
-              onClick={handleDisable}
-              disabled={disabling}
+              type="button" onClick={handleDisable} disabled={disabling}
               className="text-xs text-gray-500 hover:text-red-600 whitespace-nowrap disabled:opacity-50">
-              {disabling ? "Reverting..." : "Revert to app defaults"}
+              {disabling ? "Reverting…" : "Revert to app defaults"}
             </button>
           )}
         </div>
@@ -101,12 +174,11 @@ export default function SetupPage() {
       {!customConfigured && envConfigured && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between gap-4">
           <p className="text-sm text-blue-800">
-            The app is running with default Stripe credentials (set by the app owner).
+            The app is running with default Stripe credentials.
             Enter your own below to use your Stripe account instead.
           </p>
           <button
-            type="button"
-            onClick={() => navigate("/dashboard")}
+            type="button" onClick={runProvision}
             className="text-sm font-medium text-blue-700 hover:text-blue-900 whitespace-nowrap">
             Skip — use defaults
           </button>
@@ -130,25 +202,25 @@ export default function SetupPage() {
         <div className="space-y-2">
           <div className="font-medium text-gray-700">Step 2 — Register the webhook endpoint</div>
           <p className="text-xs text-gray-500 mb-1">
-            Your webhook URL: <code className="bg-gray-200 px-1 rounded font-mono">{webhookUrl}</code>
+            Your webhook URL:{" "}
+            <code className="bg-gray-200 px-1 rounded font-mono">{webhookUrl}</code>
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
-              <div className="text-xs font-semibold text-gray-700">Option A — Stripe Dashboard (permanent)</div>
+              <div className="text-xs font-semibold text-gray-700">Option A — Stripe Dashboard</div>
               <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
                 <li>Developers → Webhooks → Add endpoint</li>
-                <li>Endpoint URL: <code className="bg-gray-100 px-0.5 rounded break-all">{webhookUrl}</code></li>
+                <li>URL: <code className="bg-gray-100 px-0.5 rounded break-all">{webhookUrl}</code></li>
                 <li>Subscribe to <code className="bg-gray-100 px-0.5 rounded">customer.subscription.*</code> and <code className="bg-gray-100 px-0.5 rounded">invoice.*</code></li>
                 <li>Copy the Signing secret (<code className="bg-gray-100 px-0.5 rounded">whsec_...</code>)</li>
               </ol>
             </div>
             <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
-              <div className="text-xs font-semibold text-gray-700">Option B — CLI forwarder (local only)</div>
+              <div className="text-xs font-semibold text-gray-700">Option B — CLI forwarder (local)</div>
               <p className="text-xs text-gray-600">Keep this running while you test:</p>
               <pre className="bg-gray-100 rounded p-2 text-xs font-mono break-all whitespace-pre-wrap">{`stripe listen --forward-to ${webhookUrl}`}</pre>
               <p className="text-xs text-gray-500">
                 Copy the <code className="bg-gray-100 px-0.5 rounded">whsec_...</code> secret printed in the terminal.
-                Re-enter here if you restart the CLI.
               </p>
             </div>
           </div>
@@ -157,8 +229,8 @@ export default function SetupPage() {
         <div className="space-y-1">
           <div className="font-medium text-gray-700">Step 3 — Enter both values below and click Verify &amp; Save</div>
           <p className="text-gray-600">
-            The app will validate your key and automatically create Pro ($49/mo) and Premium ($99/mo)
-            products in your Stripe account.
+            The app will validate your key and automatically create Pro ($49/mo) and Premium
+            ($99/mo) products in your Stripe account, then provision a demo subscription.
           </p>
         </div>
       </div>
@@ -182,90 +254,28 @@ export default function SetupPage() {
               </p>
             )}
             <input
-              type={type}
-              value={form[field]}
-              onChange={set(field)}
-              placeholder={placeholder}
+              type={type} value={form[field]} onChange={set(field)} placeholder={placeholder}
               className={`w-full text-sm text-gray-900 border rounded px-3 py-2 font-mono ${
                 errors[field] ? "border-red-400 bg-red-50" : "border-gray-200 bg-white"
               }`}
             />
-            {errors[field] && (
-              <p className="text-xs text-red-600 mt-1">{errors[field]}</p>
-            )}
+            {errors[field] && <p className="text-xs text-red-600 mt-1">{errors[field]}</p>}
           </div>
         ))}
 
         <div className="flex items-center gap-3 pt-2">
           <button
-            type="submit"
-            disabled={submitting}
+            type="submit" disabled={submitting}
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
-            {submitting ? "Verifying with Stripe..." : "Verify & Save"}
+            {submitting ? "Verifying with Stripe…" : "Verify & Save"}
           </button>
         </div>
       </form>
 
-      {demoCustomerId && (
-        <SubscribePanel onDone={() => navigate("/billing")} />
-      )}
-
       <p className="text-xs text-gray-500">
         In a real deployment these credentials would be environment variables managed as secrets.
-        This page exists solely for demo convenience — it lets reviewers use their own Stripe
-        test account without modifying server configuration.
+        This page exists solely for demo convenience.
       </p>
-    </div>
-  )
-}
-
-function SubscribePanel({ onDone }: { onDone: () => void }) {
-  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle")
-  const [error, setError] = useState<string | null>(null)
-
-  const subscribe = async () => {
-    setState("loading")
-    try {
-      await api.demoSubscribe()
-      setState("done")
-    } catch (e) {
-      setError((e as Error).message)
-      setState("error")
-    }
-  }
-
-  return (
-    <div className="bg-green-50 border border-green-300 rounded-lg p-5 space-y-3">
-      <p className="text-sm font-semibold text-green-800">Credentials saved!</p>
-      <p className="text-sm text-green-700">
-        Click below to create a test Pro subscription and fire the webhook pipeline end-to-end.
-        Make sure <code className="bg-green-100 px-1 rounded">stripe listen</code> is running first.
-      </p>
-      {state === "error" && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-      {state === "done" ? (
-        <div className="space-y-2">
-          <p className="text-sm text-green-800 font-medium">Subscription created — webhook is processing.</p>
-          <button onClick={onDone}
-            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800">
-            Go to Billing →
-          </button>
-        </div>
-      ) : (
-        <div className="flex gap-3">
-          <button
-            disabled={state === "loading"}
-            onClick={subscribe}
-            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50">
-            {state === "loading" ? "Creating subscription…" : "Create test subscription"}
-          </button>
-          <button onClick={onDone}
-            className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
-            Skip → Go to Billing
-          </button>
-        </div>
-      )}
     </div>
   )
 }
