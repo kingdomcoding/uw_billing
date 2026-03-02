@@ -12,11 +12,38 @@ const navLinks = [
 
 export default function Layout() {
   const [apiKey, setApiKey] = useState(localStorage.getItem("uw_api_key") ?? "")
+  const [email, setEmail] = useState<string | null>(null)
   const [stripeStatus, setStripeStatus] = useState<StripeConfigStatus | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem("uw_api_key", apiKey)
-  }, [apiKey])
+    const stored = localStorage.getItem("uw_api_key") ?? ""
+
+    const refreshFromDemo = () =>
+      api.demoSession()
+        .then(({ api_key, email: e }) => {
+          localStorage.setItem("uw_api_key", api_key)
+          setApiKey(api_key)
+          setEmail(e)
+        })
+        .catch(() => {})
+        .finally(() => setReady(true))
+
+    if (stored) {
+      api.account()
+        .then(info => {
+          setEmail(info.email)
+          setReady(true)
+        })
+        .catch(() => {
+          localStorage.removeItem("uw_api_key")
+          setApiKey("")
+          refreshFromDemo()
+        })
+    } else {
+      refreshFromDemo()
+    }
+  }, [])
 
   useEffect(() => {
     if (!apiKey) return
@@ -26,6 +53,9 @@ export default function Layout() {
   }, [apiKey])
 
   const stripeOk = stripeStatus?.configured === true
+  const setupTitle = stripeOk
+    ? "Stripe configured"
+    : "Stripe not configured — billing features disabled"
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,21 +71,17 @@ export default function Layout() {
             >
               {label}
               {isSetup && stripeStatus !== null && (
-                <span className={`w-2 h-2 rounded-full ${stripeOk ? "bg-green-500" : "bg-amber-500"}`} />
+                <span
+                  title={setupTitle}
+                  className={`w-2 h-2 rounded-full cursor-help ${stripeOk ? "bg-green-500" : "bg-amber-500"}`}
+                />
               )}
             </NavLink>
           )
         })}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500">API Key:</span>
-          <input
-            type="text"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder="Paste X-Api-Key here"
-            className="text-xs text-gray-900 bg-white border border-gray-200 rounded px-2 py-1 w-56 font-mono"
-          />
-        </div>
+        {email && (
+          <div className="ml-auto text-xs text-gray-500 font-mono">{email}</div>
+        )}
       </nav>
 
       {stripeStatus !== null && !stripeOk && (
@@ -69,7 +95,7 @@ export default function Layout() {
       )}
 
       <main className="max-w-5xl mx-auto p-6">
-        <Outlet />
+        {ready ? <Outlet /> : null}
       </main>
     </div>
   )

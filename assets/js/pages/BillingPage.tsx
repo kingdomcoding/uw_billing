@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
 import { api, Plan, SubscriptionInfo, Invoice } from "../api"
 import StatusBadge from "../components/StatusBadge"
 
@@ -9,29 +8,59 @@ interface State {
   invoices: Invoice[]
   loading: boolean
   error: string | null
+  actionError: string | null
 }
 
 export default function BillingPage() {
   const [state, setState] = useState<State>({
-    plans: [], sub: null, invoices: [], loading: true, error: null
+    plans: [], sub: null, invoices: [], loading: true, error: null, actionError: null
   })
   const [acting, setActing] = useState<string | null>(null)
+  const [bootstrapping, setBootstrapping] = useState(false)
 
-  const load = () =>
+  const load = (): Promise<SubscriptionInfo | null> =>
     Promise.all([api.listPlans(), api.subscription(), api.invoices()])
-      .then(([plans, sub, invoices]) =>
-        setState({ plans, sub, invoices, loading: false, error: null }))
-      .catch(err => setState(s => ({ ...s, loading: false, error: (err as Error).message })))
+      .then(([plans, sub, invoices]) => {
+        setState(s => ({ ...s, plans, sub, invoices, loading: false, error: null }))
+        return sub
+      })
+      .catch(err => {
+        setState(s => ({ ...s, loading: false, error: (err as Error).message }))
+        return null
+      })
 
-  useEffect(() => { load() }, [])
+  const maybeBootstrap = async () => {
+    setBootstrapping(true)
+    try {
+      await api.demoSubscribe()
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000))
+        const sub = await api.subscription()
+        if (sub) {
+          await load()
+          return
+        }
+      }
+      await load()
+    } catch (_) {
+      await load()
+    } finally {
+      setBootstrapping(false)
+    }
+  }
+
+  useEffect(() => {
+    load().then(sub => { if (!sub) maybeBootstrap() })
+  }, [])
 
   const doAction = async (key: string, fn: () => Promise<SubscriptionInfo | void>) => {
     setActing(key)
+    setState(s => ({ ...s, actionError: null }))
     try {
       await fn()
       await load()
     } catch (e) {
-      setState(s => ({ ...s, error: (e as Error).message }))
+      setState(s => ({ ...s, actionError: (e as Error).message }))
     } finally {
       setActing(null)
     }
@@ -40,8 +69,14 @@ export default function BillingPage() {
   const fmt = (s: string | null) =>
     s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"
 
-  if (state.loading) return <div className="p-8 text-gray-500">Loading...</div>
-  if (state.error)   return <div className="p-8 text-red-500">Error: {state.error}</div>
+  if (state.loading || bootstrapping) {
+    return (
+      <div className="p-8 text-gray-500">
+        {bootstrapping ? "Setting up your demo subscription…" : "Loading..."}
+      </div>
+    )
+  }
+  if (state.error) return <div className="p-8 text-red-500">Error: {state.error}</div>
 
   const { sub, invoices } = state
   const tiers = ["free", "pro", "premium"]
@@ -51,13 +86,22 @@ export default function BillingPage() {
     <div className="space-y-10">
       <h1 className="text-2xl font-semibold text-gray-900">Billing</h1>
 
+      {state.actionError && (
+        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{state.actionError}</span>
+          <button
+            onClick={() => setState(s => ({ ...s, actionError: null }))}
+            className="ml-4 text-red-500 hover:text-red-700 font-bold">
+            ×
+          </button>
+        </div>
+      )}
+
       {/* ── Current subscription ─────────────────────────────── */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         {!sub ? (
           <div className="text-sm text-gray-500">
-            No active subscription.{" "}
-            <Link to="/setup" className="text-blue-600 underline">Complete setup</Link>
-            {" "}to create one.
+            No active subscription. Select a plan below to get started.
           </div>
         ) : (
           <div className="space-y-4">
@@ -88,6 +132,19 @@ export default function BillingPage() {
             {sub.cancel_at_period_end && (
               <div className="text-sm text-amber-700 bg-amber-50 rounded px-3 py-2">
                 Cancels at end of current period ({fmt(sub.current_period_end)})
+              </div>
+            )}
+            {sub.scheduled_plan && !sub.cancel_at_period_end && (
+              <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                <span className="text-sm text-amber-800">
+                  Switching to <strong>{sub.scheduled_plan.name}</strong> on {fmt(sub.current_period_end)} — takes effect at end of billing period.
+                </span>
+                <button
+                  disabled={!!acting}
+                  onClick={() => doAction("cancel-schedule", () => api.changePlan(sub.plan.id, true))}
+                  className="ml-4 text-xs text-amber-700 underline hover:text-amber-900 whitespace-nowrap disabled:opacity-50">
+                  {acting === "cancel-schedule" ? "Cancelling..." : "Undo"}
+                </button>
               </div>
             )}
 
@@ -129,14 +186,18 @@ export default function BillingPage() {
         <h2 className="text-base font-semibold text-gray-900 mb-4">Plans</h2>
         <div className="grid grid-cols-3 gap-4">
           {plans.map(plan => {
-            const isCurrent = sub?.plan.id === plan.id
-            const isUpgrade = !!sub && plan.amount_cents > sub.plan.amount_cents
+            const isCurrent   = sub?.plan.id === plan.id
+            const isScheduled = !!sub?.scheduled_plan && sub.scheduled_plan.id === plan.id
+            const isUpgrade   = !!sub && plan.amount_cents > sub.plan.amount_cents
+            const noSub       = !sub
+
+            let borderClass = "border-gray-200"
+            if (isCurrent)   borderClass = "border-blue-400 ring-1 ring-blue-400"
+            if (isScheduled) borderClass = "border-amber-400 ring-1 ring-amber-400"
 
             return (
               <div key={plan.id}
-                className={`bg-white rounded-lg border p-5 flex flex-col gap-4 ${
-                  isCurrent ? "border-blue-400 ring-1 ring-blue-400" : "border-gray-200"
-                }`}>
+                className={`bg-white rounded-lg border p-5 flex flex-col gap-4 ${borderClass}`}>
                 <div>
                   <div className="text-base font-semibold capitalize text-gray-900">{plan.name}</div>
                   <div className="text-2xl font-bold text-gray-900 mt-1">
@@ -160,20 +221,26 @@ export default function BillingPage() {
                   <div className="text-sm text-blue-600 font-medium text-center py-1.5">
                     Current plan
                   </div>
+                ) : isScheduled ? (
+                  <div className="text-sm text-amber-700 font-medium text-center py-1.5">
+                    Scheduled for {fmt(sub!.current_period_end)}
+                  </div>
                 ) : (
                   <button
-                    disabled={!!acting || !sub}
+                    disabled={!!acting}
                     onClick={() =>
-                      doAction(`plan-${plan.id}`, () => api.changePlan(plan.id, isUpgrade))
+                      noSub
+                        ? doAction(`plan-${plan.id}`, () => api.subscribe(plan.id))
+                        : doAction(`plan-${plan.id}`, () => api.changePlan(plan.id, isUpgrade))
                     }
                     className={`w-full py-1.5 text-sm rounded disabled:opacity-50 ${
-                      isUpgrade
+                      isUpgrade || noSub
                         ? "bg-blue-600 text-white hover:bg-blue-700"
                         : "border border-gray-300 text-gray-700 hover:bg-gray-50"
                     }`}>
                     {acting === `plan-${plan.id}`
                       ? "Switching..."
-                      : isUpgrade ? "Upgrade →" : "Downgrade"}
+                      : noSub ? "Subscribe →" : isUpgrade ? "Upgrade →" : "Downgrade"}
                   </button>
                 )}
               </div>

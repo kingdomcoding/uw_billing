@@ -19,6 +19,7 @@ export interface SubscriptionInfo {
   id: string; status: string; plan: Plan
   current_period_start: string; current_period_end: string
   trial_end: string | null; cancel_at_period_end: boolean
+  scheduled_plan: Plan | null
 }
 export interface Invoice {
   id: string; stripe_invoice_id: string; amount_cents: number
@@ -117,6 +118,7 @@ export const api = {
   listPlans:  ()                       => get<Plan[]>("/plans"),
   subscription: ()                     => get<SubscriptionInfo | null>("/subscription"),
   invoices:   ()                       => get<Invoice[]>("/invoices"),
+  subscribe:  (plan_id: string) => post<void>("/billing/subscribe", { plan_id }),
   changePlan: (plan_id: string, immediate: boolean) =>
                 post<SubscriptionInfo>("/subscription/change_plan", { plan_id, immediate }),
   pauseSub:   () => post<SubscriptionInfo>("/subscription/pause"),

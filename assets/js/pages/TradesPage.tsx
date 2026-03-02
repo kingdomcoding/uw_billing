@@ -6,18 +6,28 @@ export default function TradesPage() {
   const [trades, setTrades] = useState<CongressTrade[]>([])
   const [summary, setSummary] = useState<CongressSummary[]>([])
   const [filterTicker, setFilterTicker] = useState("")
+  const [isFiltered, setIsFiltered] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadAll = () => {
+    setIsFiltered(false)
+    setLoading(true)
     Promise.all([api.recentTrades(50), api.tradeSummary()])
       .then(([t, s]) => { setTrades(t); setSummary(s); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadAll() }, [])
 
   const searchTicker = () => {
-    if (!filterTicker.trim()) return
+    const q = filterTicker.trim()
+    if (!q) {
+      loadAll()
+      return
+    }
     setLoading(true)
-    api.tradesByTicker(filterTicker.trim())
+    setIsFiltered(true)
+    api.tradesByTicker(q)
       .then(t => { setTrades(t); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -44,6 +54,21 @@ export default function TradesPage() {
             className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700">
             Search
           </button>
+          {isFiltered && (
+            <button
+              onClick={() => { setFilterTicker(""); loadAll() }}
+              className="text-sm px-3 py-1.5 border border-gray-200 text-gray-600 rounded hover:bg-gray-50">
+              Clear
+            </button>
+          )}
+          {!isFiltered && (
+            <button
+              onClick={loadAll}
+              className="text-sm px-3 py-1.5 border border-gray-200 text-gray-600 rounded hover:bg-gray-50"
+              title="Refresh">
+              ↻
+            </button>
+          )}
         </div>
       </div>
 
@@ -55,6 +80,7 @@ export default function TradesPage() {
               <button key={s.ticker}
                 onClick={() => {
                   setFilterTicker(s.ticker)
+                  setIsFiltered(true)
                   api.tradesByTicker(s.ticker).then(t => setTrades(t ?? []))
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs hover:bg-blue-50 hover:border-blue-300">

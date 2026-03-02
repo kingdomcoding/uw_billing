@@ -241,7 +241,7 @@ defmodule UwBilling.Billing.Subscription do
       end
 
       filter expr(user_id == ^arg(:user_id) and status != :canceled)
-      prepare fn query, _ -> Ash.Query.load(query, :plan) end
+      prepare fn query, _ -> Ash.Query.load(query, [:plan, :scheduled_plan]) end
     end
 
     read :by_stripe_id do

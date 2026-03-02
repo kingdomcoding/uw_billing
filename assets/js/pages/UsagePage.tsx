@@ -64,7 +64,7 @@ export default function UsagePage() {
           {summary.near_limit && (
             <div className="mt-3 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded p-3">
               <span>You're at {summary.usage_pct}% of your monthly limit.</span>
-              <Link to="/billing/plans" className="font-medium underline">Upgrade →</Link>
+              <Link to="/billing" className="font-medium underline">Upgrade →</Link>
             </div>
           )}
         </div>

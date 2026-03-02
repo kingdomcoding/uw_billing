@@ -19,19 +19,12 @@ export default function SetupPage() {
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [demoCustomerId, setDemoCustomerId] = useState<string | null>(null)
 
-  const autoLogin = async () => {
-    try {
-      const { api_key } = await api.demoSession()
-      localStorage.setItem("uw_api_key", api_key)
-    } catch (_) {}
-  }
-
   const load = () =>
     api.stripeConfig().then(s => {
       setStatus(s)
     }).catch(() => {})
 
-  useEffect(() => { autoLogin(); load() }, [])
+  useEffect(() => { load() }, [])
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }))
@@ -44,7 +37,6 @@ export default function SetupPage() {
     try {
       const result = await api.verifyStripe(form as StripeCredentials)
       if ("configured" in result && result.configured) {
-        await autoLogin()
         setDemoCustomerId(result.stripe_customer_id ?? null)
         await load()
       } else if ("errors" in result) {
@@ -71,8 +63,9 @@ export default function SetupPage() {
 
   const envConfigured    = status?.env_configured    === true
   const customConfigured = status?.custom_configured === true
-  const skipAvailable    = envConfigured && !customConfigured
   const revertAvailable  = customConfigured && envConfigured
+
+  const webhookUrl = `${window.location.origin}/webhooks/stripe`
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -120,35 +113,54 @@ export default function SetupPage() {
         </div>
       )}
 
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-sm text-gray-800 space-y-3">
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-sm text-gray-800 space-y-4">
         <div className="font-semibold text-gray-700">What you need from Stripe</div>
-        <ol className="list-decimal list-inside space-y-2">
-          <li>
-            <strong>Log in to Stripe in test mode.</strong>{" "}
+
+        <div className="space-y-1">
+          <div className="font-medium text-gray-700">Step 1 — Get your Secret Key</div>
+          <p className="text-gray-600">
+            Log in to{" "}
             <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer"
-              className="underline text-blue-600">dashboard.stripe.com</a> → toggle Test mode on.
-          </li>
-          <li>
-            <strong>Get your Secret Key.</strong>{" "}
-            Developers → API keys → copy the <code className="bg-gray-200 px-1 rounded">sk_test_...</code> key.
-          </li>
-          <li>
-            <strong>Start the Stripe CLI webhook forwarder</strong>{" "}
-            (keep it running while you test):
-            <pre className="bg-gray-200 rounded p-2 mt-1 text-xs font-mono">
-              stripe listen --forward-to localhost:4000/webhooks/stripe
-            </pre>
-            Copy the <code className="bg-gray-200 px-1 rounded">whsec_...</code> secret shown in the terminal.
-            <span className="block text-xs text-gray-500 mt-1">
-              This secret changes every time you run stripe listen. Re-enter it here if you restart the CLI.
-            </span>
-          </li>
-          <li>
-            <strong>Enter both values below</strong> and click Verify & Save.
+              className="underline text-blue-600">dashboard.stripe.com</a>{" "}
+            in test mode → Developers → API keys → copy the{" "}
+            <code className="bg-gray-200 px-1 rounded">sk_test_...</code> key.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="font-medium text-gray-700">Step 2 — Register the webhook endpoint</div>
+          <p className="text-xs text-gray-500 mb-1">
+            Your webhook URL: <code className="bg-gray-200 px-1 rounded font-mono">{webhookUrl}</code>
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
+              <div className="text-xs font-semibold text-gray-700">Option A — Stripe Dashboard (permanent)</div>
+              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                <li>Developers → Webhooks → Add endpoint</li>
+                <li>Endpoint URL: <code className="bg-gray-100 px-0.5 rounded break-all">{webhookUrl}</code></li>
+                <li>Subscribe to <code className="bg-gray-100 px-0.5 rounded">customer.subscription.*</code> and <code className="bg-gray-100 px-0.5 rounded">invoice.*</code></li>
+                <li>Copy the Signing secret (<code className="bg-gray-100 px-0.5 rounded">whsec_...</code>)</li>
+              </ol>
+            </div>
+            <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
+              <div className="text-xs font-semibold text-gray-700">Option B — CLI forwarder (local only)</div>
+              <p className="text-xs text-gray-600">Keep this running while you test:</p>
+              <pre className="bg-gray-100 rounded p-2 text-xs font-mono break-all whitespace-pre-wrap">{`stripe listen --forward-to ${webhookUrl}`}</pre>
+              <p className="text-xs text-gray-500">
+                Copy the <code className="bg-gray-100 px-0.5 rounded">whsec_...</code> secret printed in the terminal.
+                Re-enter here if you restart the CLI.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="font-medium text-gray-700">Step 3 — Enter both values below and click Verify &amp; Save</div>
+          <p className="text-gray-600">
             The app will validate your key and automatically create Pro ($49/mo) and Premium ($99/mo)
             products in your Stripe account.
-          </li>
-        </ol>
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
@@ -191,12 +203,6 @@ export default function SetupPage() {
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
             {submitting ? "Verifying with Stripe..." : "Verify & Save"}
           </button>
-          {skipAvailable && (
-            <button type="button" onClick={() => navigate("/dashboard")}
-              className="text-sm text-gray-500 hover:text-gray-700">
-              Skip — use app defaults
-            </button>
-          )}
         </div>
       </form>
 
