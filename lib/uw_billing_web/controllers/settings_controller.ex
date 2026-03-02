@@ -95,20 +95,50 @@ defmodule UwBillingWeb.SettingsController do
   end
 
   def demo_subscribe(conn, _params) do
-    with {:ok, config}     <- UwBilling.Config.get_stripe_config_any(),
-         {:ok, [user | _]} <- UwBilling.Accounts.list_users(),
+    secret_key = UwBilling.StripeClient.secret_key()
+    price_id   = UwBilling.StripeClient.price_id(:pro)
+
+    # If price IDs are missing (env-only key/webhook, no prior verify_stripe),
+    # provision products/prices now and save them to the DB config.
+    price_id =
+      if is_nil(price_id) or price_id == "" do
+        case provision_stripe_prices(secret_key) do
+          {:ok, pro_id, premium_id} ->
+            sync_plan_price_ids(pro_id, premium_id)
+            webhook_secret = UwBilling.StripeClient.webhook_secret()
+            UwBilling.Config.save_stripe_config(%{
+              secret_key:       secret_key,
+              webhook_secret:   webhook_secret,
+              price_id_pro:     pro_id,
+              price_id_premium: premium_id,
+              verified_at:      DateTime.utc_now()
+            })
+            pro_id
+          {:error, _} -> nil
+        end
+      else
+        price_id
+      end
+
+    # Ensure the demo customer exists in Stripe (may be missing on env-only first run)
+    provision_demo_customer(secret_key)
+
+    with {:ok, [user | _]} <- UwBilling.Accounts.list_users(),
          true              <- not is_nil(user.stripe_customer_id),
+         false             <- is_nil(price_id),
          {:ok, _sub}       <- Stripe.Subscription.create(
                                 %{
                                   customer: user.stripe_customer_id,
-                                  items: [%{price: config.price_id_pro}]
+                                  items: [%{price: price_id}]
                                 },
-                                api_key: config.secret_key
+                                api_key: secret_key
                               ) do
       json(conn, %{ok: true})
     else
       false ->
         conn |> put_status(422) |> json(%{error: "No Stripe customer provisioned — save credentials first"})
+      true ->
+        conn |> put_status(422) |> json(%{error: "Could not resolve Stripe price ID"})
       {:error, %Stripe.Error{} = err} ->
         conn |> put_status(422) |> json(%{error: err.message})
       {:error, reason} ->
@@ -223,9 +253,7 @@ defmodule UwBillingWeb.SettingsController do
   defp env_configured? do
     [
       System.get_env("STRIPE_SECRET_KEY"),
-      System.get_env("STRIPE_WEBHOOK_SECRET"),
-      System.get_env("STRIPE_PRICE_PRO_MONTHLY"),
-      System.get_env("STRIPE_PRICE_PREMIUM_MONTHLY")
+      System.get_env("STRIPE_WEBHOOK_SECRET")
     ]
     |> Enum.all?(&(not is_nil(&1) and &1 != ""))
   end

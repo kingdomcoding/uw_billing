@@ -5,7 +5,7 @@ defmodule UwBilling.StripeClient do
   def price_id(:premium), do: db_config(:price_id_premium) || System.get_env("STRIPE_PRICE_PREMIUM_MONTHLY")
 
   def configured? do
-    [secret_key(), webhook_secret(), price_id(:pro), price_id(:premium)]
+    [secret_key(), webhook_secret()]
     |> Enum.all?(&(not blank?(&1)))
   end
 
