@@ -67,7 +67,7 @@ defmodule UwBilling.Billing.Plan do
     end
 
     update :update do
-      accept [:name, :amount_cents, :api_request_limit, :features]
+      accept [:name, :amount_cents, :api_request_limit, :features, :stripe_price_id]
     end
 
     read :by_stripe_price do

@@ -33,6 +33,7 @@ defmodule UwBillingWeb.Router do
     get    "/stripe",         SettingsController, :show_stripe
     post   "/stripe/verify",  SettingsController, :verify_stripe
     delete "/stripe",         SettingsController, :disable_stripe
+    post   "/subscribe",      SettingsController, :demo_subscribe
   end
 
   # ── API routes (all require X-Api-Key) ──────────────────────────────────

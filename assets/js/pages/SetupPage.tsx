@@ -22,6 +22,7 @@ export default function SetupPage() {
   const [disabling, setDisabling]   = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [demoCustomerId, setDemoCustomerId] = useState<string | null>(null)
+  const [priceIdPro, setPriceIdPro] = useState<string | null>(null)
 
   const autoLogin = async () => {
     try {
@@ -57,6 +58,7 @@ export default function SetupPage() {
       if ("configured" in result && result.configured) {
         await autoLogin()
         setDemoCustomerId(result.stripe_customer_id ?? null)
+        setPriceIdPro(result.price_id_pro ?? null)
         await load()
       } else if ("errors" in result) {
         setErrors(result.errors)
@@ -227,23 +229,7 @@ export default function SetupPage() {
       </form>
 
       {demoCustomerId && (
-        <div className="bg-green-50 border border-green-300 rounded-lg p-5 space-y-3">
-          <p className="text-sm font-semibold text-green-800">
-            Credentials saved! A Stripe customer was created for your demo account.
-          </p>
-          <p className="text-sm text-green-700">
-            Run this command to trigger a test subscription webhook:
-          </p>
-          <pre className="bg-white border border-green-200 rounded p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap break-all">
-{`stripe trigger customer.subscription.created \\
-  --override subscription:customer=${demoCustomerId}`}
-          </pre>
-          <button
-            onClick={() => navigate("/billing")}
-            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800">
-            Continue to Billing →
-          </button>
-        </div>
+        <SubscribePanel onDone={() => navigate("/billing")} />
       )}
 
       <p className="text-xs text-gray-400">
@@ -251,6 +237,57 @@ export default function SetupPage() {
         This page exists solely for demo convenience — it lets reviewers use their own Stripe
         test account without modifying server configuration.
       </p>
+    </div>
+  )
+}
+
+function SubscribePanel({ onDone }: { onDone: () => void }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle")
+  const [error, setError] = useState<string | null>(null)
+
+  const subscribe = async () => {
+    setState("loading")
+    try {
+      await api.demoSubscribe()
+      setState("done")
+    } catch (e) {
+      setError((e as Error).message)
+      setState("error")
+    }
+  }
+
+  return (
+    <div className="bg-green-50 border border-green-300 rounded-lg p-5 space-y-3">
+      <p className="text-sm font-semibold text-green-800">Credentials saved!</p>
+      <p className="text-sm text-green-700">
+        Click below to create a test Pro subscription and fire the webhook pipeline end-to-end.
+        Make sure <code className="bg-green-100 px-1 rounded">stripe listen</code> is running first.
+      </p>
+      {state === "error" && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
+      {state === "done" ? (
+        <div className="space-y-2">
+          <p className="text-sm text-green-800 font-medium">Subscription created — webhook is processing.</p>
+          <button onClick={onDone}
+            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800">
+            Go to Billing →
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <button
+            disabled={state === "loading"}
+            onClick={subscribe}
+            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50">
+            {state === "loading" ? "Creating subscription…" : "Create test subscription"}
+          </button>
+          <button onClick={onDone}
+            className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
+            Skip → Go to Billing
+          </button>
+        </div>
+      )}
     </div>
   )
 }

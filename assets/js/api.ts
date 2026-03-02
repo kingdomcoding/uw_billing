@@ -46,7 +46,7 @@ export interface StripeCredentials {
   price_id_premium: string
 }
 export type StripeVerifyResult =
-  | { configured: true; stripe_customer_id: string | null }
+  | { configured: true; stripe_customer_id: string | null; price_id_pro: string }
   | { errors: Record<string, string> }
 
 // ── Congress types ──────────────────────────────────────────────────────────
@@ -132,6 +132,7 @@ export const api = {
   stripeConfig: ()                         => publicGet<StripeConfigStatus>("/setup/stripe"),
   verifyStripe: (creds: StripeCredentials) => publicPost<StripeVerifyResult>("/setup/stripe/verify", creds),
   disableStripe: ()                        => publicDel("/setup/stripe"),
+  demoSubscribe: ()                        => publicPost<{ ok: boolean }>("/setup/subscribe"),
 
   recentTrades:   (limit = 20)        => get<CongressTrade[]>(`/congress/recent?limit=${limit}`),
   tradesByTicker: (ticker: string)    => get<CongressTrade[]>(`/congress/ticker/${ticker}`),
