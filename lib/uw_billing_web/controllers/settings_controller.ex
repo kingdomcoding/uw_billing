@@ -4,7 +4,19 @@ defmodule UwBillingWeb.SettingsController do
   require Logger
 
   def setup_status(conn, _params) do
-    json(conn, %{configured: UwBilling.StripeClient.configured?()})
+    configured = UwBilling.StripeClient.configured?()
+
+    has_subscription =
+      case UwBilling.Accounts.list_users() do
+        {:ok, [user | _]} ->
+          case UwBilling.Billing.get_active_subscription(user.id) do
+            {:ok, [_ | _]} -> true
+            _              -> false
+          end
+        _ -> false
+      end
+
+    json(conn, %{configured: configured, has_subscription: has_subscription})
   end
 
   def demo_session(conn, _params) do
@@ -19,10 +31,12 @@ defmodule UwBillingWeb.SettingsController do
 
     case UwBilling.Config.get_stripe_config_any() do
       {:ok, config} when not is_nil(config) ->
+        custom_configured = config.enabled and config.user_provided
+
         json(conn, %{
           env_configured: env_configured,
-          custom_configured: config.enabled,
-          configured: config.enabled || env_configured,
+          custom_configured: custom_configured,
+          configured: custom_configured || env_configured,
           secret_key: mask(config.secret_key),
           webhook_secret: mask(config.webhook_secret),
           price_id_pro: config.price_id_pro,
@@ -60,7 +74,7 @@ defmodule UwBillingWeb.SettingsController do
             end
         end
 
-      case UwBilling.Config.save_stripe_config(%{
+      case UwBilling.Config.save_user_provided_stripe_config(%{
              secret_key:       secret_key,
              webhook_secret:   webhook_secret,
              price_id_pro:     price_id_pro,

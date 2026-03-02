@@ -39,6 +39,11 @@ defmodule UwBilling.Config.StripeConfig do
       default true
     end
 
+    attribute :user_provided, :boolean do
+      allow_nil? false
+      default false
+    end
+
     attribute :verified_at, :utc_datetime do
       allow_nil? true
     end
@@ -67,6 +72,17 @@ defmodule UwBilling.Config.StripeConfig do
       upsert_identity :singleton
 
       change set_attribute(:enabled, true)
+      change set_attribute(:user_provided, false)
+      change set_attribute(:singleton_key, "default")
+    end
+
+    create :save_user_provided do
+      accept [:secret_key, :webhook_secret, :price_id_pro, :price_id_premium, :verified_at]
+      upsert? true
+      upsert_identity :singleton
+
+      change set_attribute(:enabled, true)
+      change set_attribute(:user_provided, true)
       change set_attribute(:singleton_key, "default")
     end
 

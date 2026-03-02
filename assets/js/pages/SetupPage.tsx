@@ -2,13 +2,13 @@ import React, { useEffect, useState, useRef } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api, StripeCredentials, StripeConfigStatus } from "../api"
 
-type OutletCtx = { refreshStripe: () => void }
+type OutletCtx = { refreshStripe: () => void; refreshSub: () => void }
 type FormState = { secret_key: string; webhook_secret: string }
 type ProvState = "idle" | "provisioning" | "done" | "timeout"
 
 export default function SetupPage() {
   const navigate = useNavigate()
-  const { refreshStripe } = useOutletContext<OutletCtx>()
+  const { refreshStripe, refreshSub } = useOutletContext<OutletCtx>()
 
   const [status, setStatus]           = useState<StripeConfigStatus | null>(null)
   const [form, setForm]               = useState<FormState>({ secret_key: "", webhook_secret: "" })
@@ -28,7 +28,7 @@ export default function SetupPage() {
 
   const runProvision = async () => {
     const existing = await api.subscription().catch(() => null)
-    if (existing) { navigate("/billing"); return }
+    if (existing) { refreshSub(); navigate("/billing"); return }
 
     setProv("provisioning")
     setElapsed(0)
@@ -42,6 +42,7 @@ export default function SetupPage() {
           await api.seedDemoInvoices().catch(() => null)
           setProv("done")
           clearInterval(timerRef.current!)
+          refreshSub()
           setTimeout(() => navigate("/billing"), 1200)
           return
         }

@@ -14,6 +14,7 @@ export default function Layout() {
   const [apiKey, setApiKey]             = useState(localStorage.getItem("uw_api_key") ?? "")
   const [email, setEmail]               = useState<string | null>(null)
   const [stripeStatus, setStripeStatus] = useState<StripeConfigStatus | null>(null)
+  const [hasSub, setHasSub]             = useState<boolean | null>(null)
   const [ready, setReady]               = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
@@ -50,19 +51,31 @@ export default function Layout() {
   }, [])
 
   useEffect(() => {
-    if (!apiKey) return
     refreshStripe()
-  }, [apiKey, refreshStripe])
+  }, [refreshStripe])
+
+  const refreshSub = useCallback(() => {
+    if (!apiKey) return
+    api.subscription()
+      .then(sub => setHasSub(!!sub))
+      .catch(() => setHasSub(false))
+  }, [apiKey])
 
   useEffect(() => {
-    if (stripeStatus === null) return
-    if (!stripeStatus.configured && location.pathname !== "/setup") {
+    refreshSub()
+  }, [refreshSub])
+
+  useEffect(() => {
+    if (stripeStatus === null || hasSub === null) return
+    if (location.pathname === "/setup") return
+    if (!stripeStatus.configured || !hasSub) {
       navigate("/setup", { replace: true })
     }
-  }, [stripeStatus, location.pathname, navigate])
+  }, [stripeStatus, hasSub, location.pathname, navigate])
 
-  const stripeOk = stripeStatus?.configured === true
+  const stripeOk = stripeStatus?.configured === true && hasSub === true
   const navLinks = stripeOk ? ALL_NAV : ALL_NAV.slice(0, 1)
+  const fullyReady = ready && hasSub !== null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -87,8 +100,8 @@ export default function Layout() {
       </nav>
 
       <main className="max-w-5xl mx-auto p-6">
-        {ready
-          ? <Outlet context={{ refreshStripe }} />
+        {fullyReady
+          ? <Outlet context={{ refreshStripe, refreshSub }} />
           : <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading…</div>
         }
       </main>
