@@ -63,8 +63,8 @@ defmodule UwBilling.Usage.ClickHouse do
     """
 
     case Ch.query(UwBilling.CH, query, %{user_id: to_user_int(user_id), days: days}) do
-      {:ok, %{rows: [[p50, p95]]}} -> {:ok, %{p50_ms: p50 || 0.0, p95_ms: p95 || 0.0}}
-      {:ok, %{rows: []}} -> {:ok, %{p50_ms: 0.0, p95_ms: 0.0}}
+      {:ok, %{rows: [[p50, p95]]}} -> {:ok, %{p50: p50 || 0.0, p95: p95 || 0.0}}
+      {:ok, %{rows: []}} -> {:ok, %{p50: 0.0, p95: 0.0}}
       {:error, _} = err -> err
     end
   end

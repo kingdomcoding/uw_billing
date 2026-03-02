@@ -25,10 +25,14 @@ defmodule UwBillingWeb.Router do
     post "/stripe", WebhookController, :stripe
   end
 
-  # ── Setup status (no auth) ───────────────────────────────────────────────
+  # ── Setup / Stripe config (no auth — only usable before API key exists) ─
   scope "/api/setup", UwBillingWeb do
     pipe_through :api
-    get "/status", SettingsController, :setup_status
+    get    "/status",         SettingsController, :setup_status
+    get    "/session",        SettingsController, :demo_session
+    get    "/stripe",         SettingsController, :show_stripe
+    post   "/stripe/verify",  SettingsController, :verify_stripe
+    delete "/stripe",         SettingsController, :disable_stripe
   end
 
   # ── API routes (all require X-Api-Key) ──────────────────────────────────

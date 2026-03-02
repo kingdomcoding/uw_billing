@@ -21,6 +21,14 @@ export default function SetupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [disabling, setDisabling]   = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
+  const [demoCustomerId, setDemoCustomerId] = useState<string | null>(null)
+
+  const autoLogin = async () => {
+    try {
+      const { api_key } = await api.demoSession()
+      localStorage.setItem("uw_api_key", api_key)
+    } catch (_) {}
+  }
 
   const load = () =>
     api.stripeConfig().then(s => {
@@ -34,7 +42,7 @@ export default function SetupPage() {
       }
     }).catch(() => {})
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { autoLogin(); load() }, [])
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }))
@@ -47,7 +55,9 @@ export default function SetupPage() {
     try {
       const result = await api.verifyStripe(form as StripeCredentials)
       if ("configured" in result && result.configured) {
-        navigate("/dashboard")
+        await autoLogin()
+        setDemoCustomerId(result.stripe_customer_id ?? null)
+        await load()
       } else if ("errors" in result) {
         setErrors(result.errors)
       }
@@ -215,6 +225,26 @@ export default function SetupPage() {
           )}
         </div>
       </form>
+
+      {demoCustomerId && (
+        <div className="bg-green-50 border border-green-300 rounded-lg p-5 space-y-3">
+          <p className="text-sm font-semibold text-green-800">
+            Credentials saved! A Stripe customer was created for your demo account.
+          </p>
+          <p className="text-sm text-green-700">
+            Run this command to trigger a test subscription webhook:
+          </p>
+          <pre className="bg-white border border-green-200 rounded p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap break-all">
+{`stripe trigger customer.subscription.created \\
+  --override subscription:customer=${demoCustomerId}`}
+          </pre>
+          <button
+            onClick={() => navigate("/billing")}
+            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800">
+            Continue to Billing →
+          </button>
+        </div>
+      )}
 
       <p className="text-xs text-gray-400">
         In a real deployment these credentials would be environment variables managed as secrets.

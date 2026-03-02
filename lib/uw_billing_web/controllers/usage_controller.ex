@@ -31,15 +31,17 @@ defmodule UwBillingWeb.UsageController do
     with {:ok, count} <- ClickHouse.monthly_count(user_id) do
       limit = sub && sub.plan && sub.plan.api_request_limit
       near_limit = limit != nil && count >= limit * 0.8
+      usage_pct = if limit && limit > 0, do: Float.round(count / limit * 100, 1), else: nil
 
       json(conn, %{
-        monthly_count: count,
-        api_request_limit: limit,
+        count: count,
+        limit: limit,
+        usage_pct: usage_pct,
         near_limit: near_limit,
         plan_tier: conn.assigns.plan_tier
       })
     else
-      _ -> json(conn, %{monthly_count: 0, api_request_limit: nil, near_limit: false})
+      _ -> json(conn, %{count: 0, limit: nil, usage_pct: nil, near_limit: false, plan_tier: conn.assigns.plan_tier})
     end
   end
 
@@ -48,7 +50,7 @@ defmodule UwBillingWeb.UsageController do
 
     case ClickHouse.latency_percentiles(conn.assigns.current_user_id, days) do
       {:ok, data} -> json(conn, data)
-      {:error, _} -> json(conn, %{p50_ms: 0.0, p95_ms: 0.0})
+      {:error, _} -> json(conn, %{p50: 0.0, p95: 0.0})
     end
   end
 

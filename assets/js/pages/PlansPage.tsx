@@ -30,7 +30,7 @@ export default function PlansPage() {
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
 
   const tiers = ["free", "pro", "premium"]
-  const sorted = [...plans].sort((a, b) => tiers.indexOf(a.tier) - tiers.indexOf(b.tier))
+  const sorted = [...(plans ?? [])].sort((a, b) => tiers.indexOf(a.tier) - tiers.indexOf(b.tier))
 
   return (
     <div className="space-y-6">

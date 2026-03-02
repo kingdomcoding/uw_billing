@@ -47,15 +47,15 @@ export default function TradesPage() {
         </div>
       </div>
 
-      {summary.length > 0 && (
+      {(summary ?? []).length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <h2 className="text-sm font-medium text-gray-700 mb-3">Active tickers (last 50 filings)</h2>
           <div className="flex flex-wrap gap-2">
-            {summary.slice(0, 20).map(s => (
+            {(summary ?? []).slice(0, 20).map(s => (
               <button key={s.ticker}
                 onClick={() => {
                   setFilterTicker(s.ticker)
-                  api.tradesByTicker(s.ticker).then(t => setTrades(t))
+                  api.tradesByTicker(s.ticker).then(t => setTrades(t ?? []))
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs hover:bg-blue-50 hover:border-blue-300">
                 <span className="font-mono font-semibold">{s.ticker}</span>
@@ -79,7 +79,7 @@ export default function TradesPage() {
             </tr>
           </thead>
           <tbody>
-            {trades.map((t, i) => (
+            {(trades ?? []).map((t, i) => (
               <tr key={t.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <td className="p-4 text-gray-700">{t.trader_name}</td>
                 <td className="p-4 font-mono font-semibold text-blue-600">{t.ticker}</td>
@@ -91,7 +91,7 @@ export default function TradesPage() {
             ))}
           </tbody>
         </table>
-        {trades.length === 0 && (
+        {(trades ?? []).length === 0 && (
           <div className="p-8 text-center text-gray-400 text-sm">No trades found.</div>
         )}
       </div>

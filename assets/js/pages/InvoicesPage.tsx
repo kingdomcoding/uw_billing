@@ -20,7 +20,7 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-gray-900">Invoice History</h1>
-      {invoices.length === 0 ? (
+      {(invoices ?? []).length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-6 text-gray-500">No invoices yet.</div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -34,7 +34,7 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv, i) => (
+              {(invoices ?? []).map((inv, i) => (
                 <tr key={inv.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <td className="p-4 font-mono text-xs text-gray-400">{inv.stripe_invoice_id}</td>
                   <td className="p-4 text-right font-medium">

@@ -9,14 +9,14 @@ defmodule UwBillingWeb.WebhookController do
     webhook_secret = UwBilling.StripeClient.webhook_secret()
 
     case Stripe.Webhook.construct_event(raw_body, sig_header, webhook_secret) do
-      {:ok, event} ->
-        %{
-          "id" => stripe_event_id,
-          "type" => event_type,
-          "data" => _data
-        } = event
+      {:ok, _event} ->
+        # Signature verified. Parse the raw body directly — avoids needing
+        # Jason.Encoder on %Stripe.Event{} and gives us string-keyed maps
+        # that the worker expects (e.g. payload["customer"], payload["id"]).
+        %{"id" => stripe_event_id, "type" => event_type} = event_map = Jason.decode!(raw_body)
+        payload = get_in(event_map, ["data", "object"]) || %{}
 
-        %{stripe_event_id: stripe_event_id, event_type: event_type, payload: event}
+        %{stripe_event_id: stripe_event_id, event_type: event_type, payload: payload}
         |> UwBilling.Workers.StripeWebhookWorker.new()
         |> Oban.insert()
 

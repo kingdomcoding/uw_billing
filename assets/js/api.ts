@@ -46,7 +46,7 @@ export interface StripeCredentials {
   price_id_premium: string
 }
 export type StripeVerifyResult =
-  | { configured: true }
+  | { configured: true; stripe_customer_id: string | null }
   | { errors: Record<string, string> }
 
 // ── Congress types ──────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ async function get<T>(path: string): Promise<T> {
     headers: { Accept: "application/json", "X-Api-Key": apiKey() }
   })
   if (!res.ok) throw new Error(`API error: ${res.status}`)
-  return (await res.json()).data as T
+  return await res.json() as T
 }
 
 async function post<T>(path: string, body?: unknown): Promise<T> {
@@ -78,8 +78,7 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
     body: body ? JSON.stringify(body) : undefined
   })
   if (!res.ok) throw new Error(`API error: ${res.status}`)
-  const json = await res.json()
-  return json.data as T
+  return await res.json() as T
 }
 
 async function del(path: string): Promise<void> {
@@ -94,6 +93,21 @@ async function publicGet<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { Accept: "application/json" } })
   if (!res.ok) throw new Error(`API error: ${res.status}`)
   return await res.json() as T
+}
+
+async function publicPost<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return await res.json() as T
+}
+
+async function publicDel(path: string): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, { method: "DELETE", headers: { Accept: "application/json" } })
+  if (!res.ok && res.status !== 204) throw new Error(`API error: ${res.status}`)
 }
 
 export const api = {
@@ -114,9 +128,10 @@ export const api = {
   account: () => get<AccountInfo>("/account"),
 
   setupStatus:  ()                         => publicGet<{ configured: boolean }>("/setup/status"),
-  stripeConfig: ()                         => get<StripeConfigStatus>("/settings/stripe"),
-  verifyStripe: (creds: StripeCredentials) => post<StripeVerifyResult>("/settings/stripe/verify", creds),
-  disableStripe: ()                        => del("/settings/stripe"),
+  demoSession:  ()                         => publicGet<{ api_key: string; email: string }>("/setup/session"),
+  stripeConfig: ()                         => publicGet<StripeConfigStatus>("/setup/stripe"),
+  verifyStripe: (creds: StripeCredentials) => publicPost<StripeVerifyResult>("/setup/stripe/verify", creds),
+  disableStripe: ()                        => publicDel("/setup/stripe"),
 
   recentTrades:   (limit = 20)        => get<CongressTrade[]>(`/congress/recent?limit=${limit}`),
   tradesByTicker: (ticker: string)    => get<CongressTrade[]>(`/congress/ticker/${ticker}`),

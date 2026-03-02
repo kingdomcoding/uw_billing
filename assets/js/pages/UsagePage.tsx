@@ -29,13 +29,13 @@ export default function UsagePage() {
 
   const { summary, latency } = state
 
-  const dailyFormatted = state.daily.map(d => ({
+  const dailyFormatted = (state.daily ?? []).map(d => ({
     ...d,
     label: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
   }))
 
-  const top9 = state.endpoints.slice(0, 9)
-  const otherTotal = state.endpoints.slice(9).reduce((s, d) => s + d.total, 0)
+  const top9 = (state.endpoints ?? []).slice(0, 9)
+  const otherTotal = (state.endpoints ?? []).slice(9).reduce((s, d) => s + d.total, 0)
   const pieData = otherTotal > 0 ? [...top9, { endpoint: "other", total: otherTotal }] : top9
 
   return (

@@ -7,6 +7,13 @@ defmodule UwBillingWeb.SettingsController do
     json(conn, %{configured: UwBilling.StripeClient.configured?()})
   end
 
+  def demo_session(conn, _params) do
+    case UwBilling.Accounts.list_users() do
+      {:ok, [user | _]} -> json(conn, %{api_key: user.api_key, email: to_string(user.email)})
+      _                 -> conn |> put_status(404) |> json(%{error: "No users seeded yet"})
+    end
+  end
+
   def show_stripe(conn, _params) do
     env_configured = env_configured?()
 
@@ -67,7 +74,8 @@ defmodule UwBillingWeb.SettingsController do
              verified_at: DateTime.utc_now()
            }) do
         {:ok, _} ->
-          json(conn, %{configured: true})
+          customer_id = provision_demo_customer(secret_key)
+          json(conn, %{configured: true, stripe_customer_id: customer_id})
 
         {:error, error} ->
           conn |> put_status(422) |> json(%{error: inspect(error)})
@@ -106,6 +114,31 @@ defmodule UwBillingWeb.SettingsController do
     case Stripe.Price.retrieve(price_id, %{}, api_key: secret_key) do
       {:ok, _} -> errors
       {:error, _} -> Map.put(errors, field, "Price ID not found in Stripe: #{price_id}")
+    end
+  end
+
+  # Creates a Stripe customer for the demo user, attaches the standard Stripe
+  # test payment method so that `stripe trigger` can create subscriptions
+  # against it, and stores the customer ID for webhook matching.
+  defp provision_demo_customer(secret_key) do
+    with {:ok, [user | _]} <- UwBilling.Accounts.list_users(),
+         {:ok, customer}   <- Stripe.Customer.create(%{email: to_string(user.email)}, api_key: secret_key),
+         {:ok, pm}         <- Stripe.PaymentMethod.attach(
+                                "pm_card_visa",
+                                %{customer: customer.id},
+                                api_key: secret_key
+                              ),
+         {:ok, _customer}  <- Stripe.Customer.update(
+                                customer.id,
+                                %{invoice_settings: %{default_payment_method: pm.id}},
+                                api_key: secret_key
+                              ),
+         {:ok, _updated}   <- UwBilling.Accounts.update_user(user, %{stripe_customer_id: customer.id}) do
+      customer.id
+    else
+      error ->
+        Logger.warning("Could not provision Stripe demo customer: #{inspect(error)}")
+        nil
     end
   end
 
