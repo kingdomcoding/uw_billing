@@ -64,6 +64,31 @@ defmodule UwBillingWeb.BillingController do
     end
   end
 
+  def seed_demo_invoices(conn, _params) do
+    case fetch_active_sub(conn) do
+      {:ok, sub} ->
+        now = DateTime.utc_now()
+        invoices =
+          for months_ago <- [3, 2, 1] do
+            paid_at = DateTime.add(now, -(months_ago * 30 * 24 * 3600), :second)
+            {:ok, inv} =
+              UwBilling.Billing.upsert_invoice(%{
+                stripe_invoice_id: "in_demo_hist_#{months_ago}mo",
+                subscription_id:   sub.id,
+                amount_cents:      sub.plan.amount_cents,
+                status:            :paid,
+                due_date:          DateTime.to_date(paid_at),
+                paid_at:           paid_at
+              })
+            inv
+          end
+        json(conn, Enum.map(invoices, &serialize_invoice/1))
+
+      {:error, _} ->
+        json(conn, [])
+    end
+  end
+
   def pause(conn, _params) do
     with {:ok, sub}     <- fetch_active_sub(conn),
          {:ok, _}       <- stripe_set_pause(sub, true),

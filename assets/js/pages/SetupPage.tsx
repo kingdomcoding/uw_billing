@@ -39,6 +39,7 @@ export default function SetupPage() {
         await new Promise(r => setTimeout(r, 2000))
         const sub = await api.subscription()
         if (sub) {
+          await api.seedDemoInvoices().catch(() => null)
           setProv("done")
           clearInterval(timerRef.current!)
           setTimeout(() => navigate("/billing"), 1200)

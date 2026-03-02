@@ -132,7 +132,8 @@ export const api = {
   stripeConfig: ()                         => publicGet<StripeConfigStatus>("/setup/stripe"),
   verifyStripe: (creds: StripeCredentials) => publicPost<StripeVerifyResult>("/setup/stripe/verify", creds),
   disableStripe: ()                        => publicDel("/setup/stripe"),
-  demoSubscribe: ()                        => publicPost<{ ok: boolean }>("/setup/subscribe"),
+  demoSubscribe:      ()  => publicPost<{ ok: boolean }>("/setup/subscribe"),
+  seedDemoInvoices:   ()  => post<Invoice[]>("/billing/seed_demo_invoices"),
 
   recentTrades:   (limit = 20)        => get<CongressTrade[]>(`/congress/recent?limit=${limit}`),
   tradesByTicker: (ticker: string)    => get<CongressTrade[]>(`/congress/ticker/${ticker}`),

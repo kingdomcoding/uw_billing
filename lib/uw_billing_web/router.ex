@@ -48,7 +48,8 @@ defmodule UwBillingWeb.Router do
     get    "/plans",                    BillingController, :list_plans
     get    "/subscription",             BillingController, :subscription
     get    "/invoices",                 BillingController, :invoices
-    post   "/billing/subscribe",        BillingController, :subscribe
+    post   "/billing/subscribe",          BillingController, :subscribe
+    post   "/billing/seed_demo_invoices", BillingController, :seed_demo_invoices
     post   "/subscription/change_plan", BillingController, :change_plan
     post   "/subscription/pause",       BillingController, :pause
     post   "/subscription/resume",      BillingController, :resume
