@@ -175,12 +175,12 @@ export default function SetupPage() {
       {!customConfigured && envConfigured && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between gap-4">
           <p className="text-sm text-blue-800">
-            The app is running with default Stripe credentials.
+            The app is running with my default Stripe credentials.
             Enter your own below to use your Stripe account instead.
           </p>
           <button
             type="button" onClick={runProvision}
-            className="text-sm font-medium text-blue-700 hover:text-blue-900 whitespace-nowrap">
+            className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap shrink-0">
             Skip — use defaults
           </button>
         </div>
