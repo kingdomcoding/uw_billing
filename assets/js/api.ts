@@ -42,8 +42,6 @@ export interface StripeConfigStatus {
 export interface StripeCredentials {
   secret_key: string
   webhook_secret: string
-  price_id_pro: string
-  price_id_premium: string
 }
 export type StripeVerifyResult =
   | { configured: true; stripe_customer_id: string | null; price_id_pro: string }

@@ -5,8 +5,6 @@ import { api, StripeCredentials, StripeConfigStatus } from "../api"
 interface FormState {
   secret_key: string
   webhook_secret: string
-  price_id_pro: string
-  price_id_premium: string
 }
 
 interface FieldErrors { [k: string]: string }
@@ -14,15 +12,12 @@ interface FieldErrors { [k: string]: string }
 export default function SetupPage() {
   const navigate = useNavigate()
   const [status, setStatus]         = useState<StripeConfigStatus | null>(null)
-  const [form, setForm]             = useState<FormState>({
-    secret_key: "", webhook_secret: "", price_id_pro: "", price_id_premium: ""
-  })
+  const [form, setForm]             = useState<FormState>({ secret_key: "", webhook_secret: "" })
   const [errors, setErrors]         = useState<FieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [disabling, setDisabling]   = useState(false)
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [demoCustomerId, setDemoCustomerId] = useState<string | null>(null)
-  const [priceIdPro, setPriceIdPro] = useState<string | null>(null)
 
   const autoLogin = async () => {
     try {
@@ -34,13 +29,6 @@ export default function SetupPage() {
   const load = () =>
     api.stripeConfig().then(s => {
       setStatus(s)
-      if (s.custom_configured) {
-        setForm(f => ({
-          ...f,
-          price_id_pro:     s.price_id_pro     ?? "",
-          price_id_premium: s.price_id_premium ?? "",
-        }))
-      }
     }).catch(() => {})
 
   useEffect(() => { autoLogin(); load() }, [])
@@ -58,7 +46,6 @@ export default function SetupPage() {
       if ("configured" in result && result.configured) {
         await autoLogin()
         setDemoCustomerId(result.stripe_customer_id ?? null)
-        setPriceIdPro(result.price_id_pro ?? null)
         await load()
       } else if ("errors" in result) {
         setErrors(result.errors)
@@ -92,7 +79,7 @@ export default function SetupPage() {
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Stripe Setup</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Enter your own Stripe test credentials to drive the billing features in this demo.
+          Enter your Stripe test credentials. Pro and Premium products will be created in your account automatically.
         </p>
       </div>
 
@@ -146,14 +133,6 @@ export default function SetupPage() {
             Developers → API keys → copy the <code className="bg-gray-200 px-1 rounded">sk_test_...</code> key.
           </li>
           <li>
-            <strong>Create two products with monthly prices.</strong>{" "}
-            Products → + Add product:
-            <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-              <li><strong>Pro</strong> — $49.00 / month (recurring). Copy the Price ID.</li>
-              <li><strong>Premium</strong> — $99.00 / month (recurring). Copy the Price ID.</li>
-            </ul>
-          </li>
-          <li>
             <strong>Start the Stripe CLI webhook forwarder</strong>{" "}
             (keep it running while you test):
             <pre className="bg-gray-200 rounded p-2 mt-1 text-xs font-mono">
@@ -165,14 +144,9 @@ export default function SetupPage() {
             </span>
           </li>
           <li>
-            <strong>Enter all four values below</strong> and click Verify & Save.
-            The app calls Stripe to validate each credential before accepting them.
-          </li>
-          <li>
-            <strong>After saving, trigger a test event</strong> to confirm the webhook pipeline:
-            <pre className="bg-gray-200 rounded p-2 mt-1 text-xs font-mono">
-              stripe trigger customer.subscription.created
-            </pre>
+            <strong>Enter both values below</strong> and click Verify & Save.
+            The app will validate your key and automatically create Pro ($49/mo) and Premium ($99/mo)
+            products in your Stripe account.
           </li>
         </ol>
       </div>
@@ -185,14 +159,12 @@ export default function SetupPage() {
         )}
 
         {([
-          { field: "secret_key",       label: "Secret Key",             placeholder: "sk_test_...", type: "password" },
-          { field: "webhook_secret",   label: "Webhook Signing Secret", placeholder: "whsec_...",  type: "password" },
-          { field: "price_id_pro",     label: "Pro Plan Price ID",      placeholder: "price_...",  type: "text"     },
-          { field: "price_id_premium", label: "Premium Plan Price ID",  placeholder: "price_...",  type: "text"     },
+          { field: "secret_key",     label: "Secret Key",             placeholder: "sk_test_...", type: "password" },
+          { field: "webhook_secret", label: "Webhook Signing Secret", placeholder: "whsec_...",  type: "password" },
         ] as const).map(({ field, label, placeholder, type }) => (
           <div key={field}>
             <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-            {customConfigured && (field === "secret_key" || field === "webhook_secret") && (
+            {customConfigured && (
               <p className="text-xs text-gray-400 mb-1">
                 Currently set (masked). Leave blank to keep existing, or enter a new value to replace.
               </p>

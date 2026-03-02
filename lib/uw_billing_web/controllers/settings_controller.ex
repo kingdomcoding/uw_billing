@@ -41,22 +41,17 @@ defmodule UwBillingWeb.SettingsController do
 
   def verify_stripe(conn, params) do
     %{
-      "secret_key" => secret_key,
-      "webhook_secret" => webhook_secret,
-      "price_id_pro" => price_id_pro,
-      "price_id_premium" => price_id_premium
+      "secret_key"     => secret_key,
+      "webhook_secret" => webhook_secret
     } = params
 
     errors = %{}
 
     errors =
       case Stripe.Balance.retrieve(%{}, api_key: secret_key) do
-        {:ok, _} -> errors
+        {:ok, _}    -> errors
         {:error, _} -> Map.put(errors, "secret_key", "Invalid secret key — could not connect to Stripe")
       end
-
-    errors = validate_price(errors, secret_key, "price_id_pro", price_id_pro)
-    errors = validate_price(errors, secret_key, "price_id_premium", price_id_premium)
 
     errors =
       if String.starts_with?(webhook_secret, "whsec_") do
@@ -66,20 +61,26 @@ defmodule UwBillingWeb.SettingsController do
       end
 
     if map_size(errors) == 0 do
-      case UwBilling.Config.save_stripe_config(%{
-             secret_key: secret_key,
-             webhook_secret: webhook_secret,
-             price_id_pro: price_id_pro,
-             price_id_premium: price_id_premium,
-             verified_at: DateTime.utc_now()
-           }) do
-        {:ok, _} ->
-          sync_plan_price_ids(price_id_pro, price_id_premium)
-          customer_id = provision_demo_customer(secret_key)
-          json(conn, %{configured: true, stripe_customer_id: customer_id, price_id_pro: price_id_pro})
+      case provision_stripe_prices(secret_key) do
+        {:ok, price_id_pro, price_id_premium} ->
+          case UwBilling.Config.save_stripe_config(%{
+                 secret_key:       secret_key,
+                 webhook_secret:   webhook_secret,
+                 price_id_pro:     price_id_pro,
+                 price_id_premium: price_id_premium,
+                 verified_at:      DateTime.utc_now()
+               }) do
+            {:ok, _} ->
+              sync_plan_price_ids(price_id_pro, price_id_premium)
+              customer_id = provision_demo_customer(secret_key)
+              json(conn, %{configured: true, stripe_customer_id: customer_id, price_id_pro: price_id_pro})
 
-        {:error, error} ->
-          conn |> put_status(422) |> json(%{error: inspect(error)})
+            {:error, error} ->
+              conn |> put_status(422) |> json(%{error: inspect(error)})
+          end
+
+        {:error, err} ->
+          conn |> put_status(422) |> json(%{error: "Failed to create Stripe prices: #{err}"})
       end
     else
       conn |> put_status(422) |> json(%{errors: errors})
@@ -108,13 +109,25 @@ defmodule UwBillingWeb.SettingsController do
     |> Enum.all?(&(not is_nil(&1) and &1 != ""))
   end
 
-  defp validate_price(errors, _secret_key, field, nil), do: Map.put(errors, field, "Required")
-  defp validate_price(errors, _secret_key, field, ""), do: Map.put(errors, field, "Required")
-
-  defp validate_price(errors, secret_key, field, price_id) do
-    case Stripe.Price.retrieve(price_id, %{}, api_key: secret_key) do
-      {:ok, _} -> errors
-      {:error, _} -> Map.put(errors, field, "Price ID not found in Stripe: #{price_id}")
+  # Creates Pro ($49/mo) and Premium ($99/mo) products and prices in the
+  # user's Stripe account automatically so they don't have to do it manually.
+  defp provision_stripe_prices(secret_key) do
+    with {:ok, pro_product}     <- Stripe.Product.create(%{name: "Pro"}, api_key: secret_key),
+         {:ok, pro_price}       <- Stripe.Price.create(
+                                     %{unit_amount: 4900, currency: "usd",
+                                       recurring: %{interval: "month"}, product: pro_product.id},
+                                     api_key: secret_key
+                                   ),
+         {:ok, premium_product} <- Stripe.Product.create(%{name: "Premium"}, api_key: secret_key),
+         {:ok, premium_price}   <- Stripe.Price.create(
+                                     %{unit_amount: 9900, currency: "usd",
+                                       recurring: %{interval: "month"}, product: premium_product.id},
+                                     api_key: secret_key
+                                   ) do
+      {:ok, pro_price.id, premium_price.id}
+    else
+      {:error, %Stripe.Error{} = err} -> {:error, err.message}
+      {:error, reason}                -> {:error, inspect(reason)}
     end
   end
 
