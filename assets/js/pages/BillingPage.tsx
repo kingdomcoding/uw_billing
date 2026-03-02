@@ -30,11 +30,21 @@ export default function BillingPage() {
 
   useEffect(() => { load() }, [])
 
-  const doAction = async (key: string, fn: () => Promise<SubscriptionInfo | void>) => {
+  const doAction = async (
+    key: string,
+    fn: () => Promise<SubscriptionInfo | void>,
+    pollUntil?: () => Promise<boolean>
+  ) => {
     setActing(key)
     setState(s => ({ ...s, actionError: null }))
     try {
       await fn()
+      if (pollUntil) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 1500))
+          if (await pollUntil()) break
+        }
+      }
       await load()
     } catch (e) {
       setState(s => ({ ...s, actionError: (e as Error).message }))
@@ -207,7 +217,11 @@ export default function BillingPage() {
                     disabled={!!acting}
                     onClick={() =>
                       noSub
-                        ? doAction(`plan-${plan.id}`, () => api.subscribe(plan.id))
+                        ? doAction(
+                            `plan-${plan.id}`,
+                            () => api.subscribe(plan.id),
+                            async () => (await api.subscription().catch(() => null)) !== null
+                          )
                         : doAction(`plan-${plan.id}`, () => api.changePlan(plan.id, isUpgrade))
                     }
                     className={`w-full py-1.5 text-sm rounded disabled:opacity-50 ${
