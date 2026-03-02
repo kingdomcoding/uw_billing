@@ -6,8 +6,6 @@ import Layout from "./components/Layout"
 import SetupPage from "./pages/SetupPage"
 import UsagePage from "./pages/UsagePage"
 import BillingPage from "./pages/BillingPage"
-import PlansPage from "./pages/PlansPage"
-import InvoicesPage from "./pages/InvoicesPage"
 import AccountPage from "./pages/AccountPage"
 import TradesPage from "./pages/TradesPage"
 
@@ -33,8 +31,6 @@ createRoot(container).render(
         <Route path="setup"            element={<SetupPage />} />
         <Route path="dashboard"        element={<UsagePage />} />
         <Route path="billing"          element={<BillingPage />} />
-        <Route path="billing/plans"    element={<PlansPage />} />
-        <Route path="billing/invoices" element={<InvoicesPage />} />
         <Route path="account"          element={<AccountPage />} />
         <Route path="trades"           element={<TradesPage />} />
       </Route>

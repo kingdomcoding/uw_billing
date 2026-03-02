@@ -6,8 +6,6 @@ const navLinks = [
   { to: "/setup",            label: "Setup" },
   { to: "/dashboard",        label: "Usage" },
   { to: "/billing",          label: "Billing" },
-  { to: "/billing/plans",    label: "Plans" },
-  { to: "/billing/invoices", label: "Invoices" },
   { to: "/trades",           label: "Congress" },
   { to: "/account",          label: "Account" },
 ]
