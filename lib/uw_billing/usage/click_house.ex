@@ -3,8 +3,8 @@ defmodule UwBilling.Usage.ClickHouse do
     query = """
     SELECT
       date,
-      sumMerge(request_count) AS request_count,
-      sumMerge(error_count)   AS error_count
+      sum(request_count) AS request_count,
+      sum(error_count)   AS error_count
     FROM uw_billing.api_requests_daily
     WHERE user_id = {user_id:UInt64}
       AND date >= today() - {days:UInt32}
@@ -22,7 +22,7 @@ defmodule UwBilling.Usage.ClickHouse do
     query = """
     SELECT
       path,
-      sumMerge(request_count) AS request_count
+      sum(request_count) AS request_count
     FROM uw_billing.api_requests_daily
     WHERE user_id = {user_id:UInt64}
       AND date >= toStartOfMonth(today())
@@ -39,7 +39,7 @@ defmodule UwBilling.Usage.ClickHouse do
 
   def monthly_count(user_id) do
     query = """
-    SELECT sumMerge(request_count) AS total
+    SELECT sum(request_count) AS total
     FROM uw_billing.api_requests_daily
     WHERE user_id = {user_id:UInt64}
       AND date >= toStartOfMonth(today())
@@ -55,8 +55,8 @@ defmodule UwBilling.Usage.ClickHouse do
   def latency_percentiles(user_id, days) do
     query = """
     SELECT
-      avgMerge(p50_ms) AS p50_ms,
-      avgMerge(p95_ms) AS p95_ms
+      avg(p50_ms) AS p50_ms,
+      avg(p95_ms) AS p95_ms
     FROM uw_billing.api_requests_daily
     WHERE user_id = {user_id:UInt64}
       AND date >= today() - {days:UInt32}

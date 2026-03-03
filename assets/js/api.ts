@@ -5,7 +5,7 @@ export interface DailyCount    { date: string; total: number; errors: number }
 export interface EndpointCount { endpoint: string; total: number }
 export interface MonthlySummary {
   count: number; limit: number | null; usage_pct: number | null
-  plan_tier: string; near_limit: boolean
+  plan_tier: string; near_limit: boolean; plan_unlimited: boolean
 }
 export interface Latency { p50: number; p95: number }
 
@@ -113,7 +113,7 @@ export const api = {
   dailyCounts:    (days = 30) => get<DailyCount[]>(`/usage/daily?days=${days}`),
   byEndpoint:     ()          => get<EndpointCount[]>("/usage/by_endpoint"),
   monthlySummary: ()          => get<MonthlySummary>("/usage/monthly_summary"),
-  latency:        ()          => get<Latency>("/usage/latency"),
+  latency:        (days = 7)  => get<Latency>(`/usage/latency?days=${days}`),
 
   listPlans:  ()                       => get<Plan[]>("/plans"),
   subscription: ()                     => get<SubscriptionInfo | null>("/subscription"),
@@ -138,4 +138,5 @@ export const api = {
   recentTrades:   (limit = 20)        => get<CongressTrade[]>(`/congress/recent?limit=${limit}`),
   tradesByTicker: (ticker: string)    => get<CongressTrade[]>(`/congress/ticker/${ticker}`),
   tradeSummary:   ()                  => get<CongressSummary[]>("/congress/summary"),
+  searchTrades:   (q: string)         => get<CongressTrade[]>(`/congress/search?q=${encodeURIComponent(q)}`),
 }

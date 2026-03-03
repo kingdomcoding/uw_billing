@@ -54,7 +54,7 @@ export default function Layout() {
   }, [refreshStripe])
 
   const refreshSub = useCallback(() => {
-    if (!apiKey) return
+    if (!apiKey) { setHasSub(false); return }
     api.subscription()
       .then(sub => setHasSub(!!sub))
       .catch(() => setHasSub(false))

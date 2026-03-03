@@ -17,6 +17,7 @@ defmodule UwBillingWeb.Router do
 
   pipeline :authenticate_api_key do
     plug UwBillingWeb.Plugs.AuthenticateApiKey
+    plug UwBillingWeb.Plugs.EnforceRateLimit
   end
 
   # ── Stripe webhooks (no auth — Stripe signature is the guard) ────────────
@@ -56,8 +57,9 @@ defmodule UwBillingWeb.Router do
     delete "/subscription",             BillingController, :cancel
 
     get "/congress/recent",         CongressController, :recent
-    get "/congress/ticker/:ticker", CongressController, :by_ticker
+    get "/congress/search",         CongressController, :search
     get "/congress/summary",        CongressController, :summary
+    get "/congress/ticker/:ticker", CongressController, :by_ticker
 
     get "/account", AccountController, :show
 

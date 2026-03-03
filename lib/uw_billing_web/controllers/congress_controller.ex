@@ -26,6 +26,15 @@ defmodule UwBillingWeb.CongressController do
     end
   end
 
+  def search(conn, %{"q" => q}) when byte_size(q) > 0 do
+    case UwBilling.Congress.search_trades(q) do
+      {:ok, trades} -> json(conn, Enum.map(trades, &serialize/1))
+      {:error, _} -> conn |> put_status(422) |> json(%{error: "Search failed"})
+    end
+  end
+
+  def search(conn, _params), do: json(conn, [])
+
   defp serialize(trade) do
     %{
       id: trade.id,

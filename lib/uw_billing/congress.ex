@@ -6,6 +6,7 @@ defmodule UwBilling.Congress do
       define :upsert_trade, action: :from_disclosure
       define :recent_trades, action: :recent, args: [{:optional, :limit}]
       define :trades_by_ticker, action: :by_ticker, args: [:ticker]
+      define :search_trades, action: :search, args: [:q]
     end
   end
 

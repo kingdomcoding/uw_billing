@@ -4,7 +4,12 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "==> Resetting Postgres..."
-mix ecto.reset
+DB_URL="postgresql://postgres:postgres@localhost:5432"
+psql "$DB_URL/postgres" \
+  -c "DROP DATABASE IF EXISTS uw_billing_dev WITH (FORCE);" \
+  -c "CREATE DATABASE uw_billing_dev;"
+mix ash.setup
+mix run priv/repo/seeds.exs
 
 echo "==> Resetting ClickHouse..."
 docker exec uw_billing-clickhouse-1 clickhouse-client \
@@ -13,10 +18,5 @@ docker exec uw_billing-clickhouse-1 clickhouse-client \
   --query "CREATE DATABASE uw_billing_dev"
 docker exec -i uw_billing-clickhouse-1 clickhouse-client \
   --database uw_billing_dev < priv/clickhouse/init.sql
-
-echo "==> Purging webhook-replayed rows..."
-psql postgresql://postgres:postgres@localhost:5432/uw_billing_dev \
-  -c "TRUNCATE stripe_configs, stripe_events, subscriptions, invoices CASCADE;" \
-  2>/dev/null || true
 
 echo "==> Done. Run: mix phx.server"

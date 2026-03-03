@@ -74,5 +74,19 @@ defmodule UwBilling.Congress.CongressTrade do
         Ash.Query.sort(query, traded_at: :desc)
       end
     end
+
+    read :search do
+      argument :q, :string, allow_nil?: false, constraints: [min_length: 1]
+
+      filter expr(
+        contains(ticker, ^arg(:q)) or contains(trader_name, ^arg(:q))
+      )
+
+      prepare fn query, _ ->
+        query
+        |> Ash.Query.sort(filed_at: :desc)
+        |> Ash.Query.limit(50)
+      end
+    end
   end
 end
