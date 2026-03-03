@@ -99,7 +99,10 @@ defmodule UwBillingWeb.SettingsController do
   def disable_stripe(conn, _params) do
     case UwBilling.Config.get_stripe_config_any() do
       {:ok, config} when not is_nil(config) ->
-        UwBilling.Config.disable_stripe_config(config)
+        case UwBilling.Config.disable_stripe_config(config) do
+          {:ok, _}    -> :ok
+          {:error, e} -> Logger.warning("disable_stripe_config failed: #{inspect(e)}")
+        end
 
       _ ->
         :ok

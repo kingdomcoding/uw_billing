@@ -87,7 +87,9 @@ defmodule UwBilling.Config.StripeConfig do
     end
 
     update :disable do
+      require_atomic? false
       change set_attribute(:enabled, false)
+      change set_attribute(:user_provided, false)
     end
   end
 end

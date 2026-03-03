@@ -166,7 +166,7 @@ export default function SetupPage() {
           {revertAvailable && (
             <button
               type="button" onClick={handleDisable} disabled={disabling}
-              className="text-xs text-gray-500 hover:text-red-600 whitespace-nowrap disabled:opacity-50">
+              className="text-xs px-2.5 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:border-red-400 hover:text-red-600 whitespace-nowrap disabled:opacity-50">
               {disabling ? "Reverting…" : "Revert to app defaults"}
             </button>
           )}
