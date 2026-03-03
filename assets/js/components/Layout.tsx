@@ -53,42 +53,48 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-6 flex items-stretch gap-6 h-12">
+        <div className="max-w-5xl mx-auto px-6 flex items-stretch h-12">
 
-          <span className="flex items-center mr-2 text-base font-bold text-gray-900 tracking-tight shrink-0">
-            Unusual Whales
-          </span>
+          <div className="flex-1 flex items-center">
+            <span className="text-base font-bold text-gray-900 tracking-tight">
+              Unusual Whales
+            </span>
+          </div>
 
-          {ALL_NAV.map(({ to, label }) => {
-            const isStripeSetup = to === "/setup"
-            return (
-              <NavLink
-                key={to} to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-1.5 text-sm font-medium border-b-2 -mb-px px-1 ` +
-                  (isActive
-                    ? "text-blue-600 border-blue-600"
-                    : "text-gray-500 border-transparent hover:text-gray-900")}
-              >
-                {label}
-                {isStripeSetup && stripeStatus !== null && (
-                  <span
-                    title={stripeOk ? "Using your Stripe credentials" : "Using app default credentials"}
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${stripeOk ? "bg-green-500" : "bg-amber-400"}`}
-                  />
-                )}
-              </NavLink>
-            )
-          })}
+          <div className="flex items-stretch gap-6">
+            {ALL_NAV.map(({ to, label }) => {
+              const isStripeSetup = to === "/setup"
+              return (
+                <NavLink
+                  key={to} to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 text-sm font-medium border-b-2 -mb-px px-1 ` +
+                    (isActive
+                      ? "text-blue-600 border-blue-600"
+                      : "text-gray-500 border-transparent hover:text-gray-900")}
+                >
+                  {label}
+                  {isStripeSetup && stripeStatus !== null && (
+                    <span
+                      title={stripeOk ? "Using your Stripe credentials" : "Using app default credentials"}
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${stripeOk ? "bg-green-500" : "bg-amber-400"}`}
+                    />
+                  )}
+                </NavLink>
+              )
+            })}
+          </div>
 
-          {email && (
-            <div className="ml-auto flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
-                {initials}
+          <div className="flex-1 flex items-center justify-end">
+            {email && (
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                  {initials}
+                </div>
+                <span className="text-sm text-gray-700">{email}</span>
               </div>
-              <span className="text-sm text-gray-700">{email}</span>
-            </div>
-          )}
+            )}
+          </div>
 
         </div>
       </nav>

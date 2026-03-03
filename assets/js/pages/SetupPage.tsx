@@ -91,7 +91,7 @@ export default function SetupPage() {
 
   if (prov === "provisioning" || prov === "done") {
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-full">
         <div className="bg-white rounded-lg border border-gray-200 p-10 text-center space-y-4">
           {prov === "done" ? (
             <>
@@ -120,7 +120,7 @@ export default function SetupPage() {
 
   if (prov === "timeout") {
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-full">
         <div className="bg-amber-50 rounded-lg border border-amber-200 p-6 space-y-3">
           <p className="text-sm font-semibold text-amber-800">Subscription setup timed out</p>
           <p className="text-sm text-amber-700">
@@ -144,7 +144,7 @@ export default function SetupPage() {
   const webhookUrl       = `${window.location.origin}/webhooks/stripe`
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8 max-w-full">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Stripe Setup</h1>
         <p className="text-sm text-gray-500 mt-1">
