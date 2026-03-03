@@ -33,7 +33,13 @@ defmodule UwBilling.Application do
     ]
 
     opts = [strategy: :one_for_one, name: UwBilling.Supervisor]
-    Supervisor.start_link(children, opts)
+    {:ok, sup} = Supervisor.start_link(children, opts)
+
+    %{}
+    |> UwBilling.Workers.CongressTradePoller.new()
+    |> Oban.insert()
+
+    {:ok, sup}
   end
 
   @impl true

@@ -35,6 +35,14 @@ defmodule UwBillingWeb.CongressController do
 
   def search(conn, _params), do: json(conn, [])
 
+  def refresh(conn, _params) do
+    %{}
+    |> UwBilling.Workers.CongressTradePoller.new()
+    |> Oban.insert()
+
+    json(conn, %{ok: true})
+  end
+
   defp serialize(trade) do
     %{
       id: trade.id,

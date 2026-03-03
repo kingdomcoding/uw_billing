@@ -9,5 +9,11 @@ defmodule UwBilling.Config do
       define :save_user_provided_stripe_config, action: :save_user_provided
       define :disable_stripe_config, action: :disable
     end
+
+    resource UwBilling.Config.AppConfig do
+      define :get_app_config,   action: :current
+      define :save_app_config,  action: :save
+      define :clear_uw_api_key, action: :clear_uw_key
+    end
   end
 end

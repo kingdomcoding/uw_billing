@@ -35,6 +35,9 @@ defmodule UwBillingWeb.Router do
     post   "/stripe/verify",  SettingsController, :verify_stripe
     delete "/stripe",         SettingsController, :disable_stripe
     post   "/subscribe",      SettingsController, :demo_subscribe
+    get    "/uw",             SettingsController, :show_uw
+    post   "/uw/save",        SettingsController, :save_uw
+    delete "/uw",             SettingsController, :clear_uw
   end
 
   # ── API routes (all require X-Api-Key) ──────────────────────────────────
@@ -56,10 +59,11 @@ defmodule UwBillingWeb.Router do
     post   "/subscription/resume",      BillingController, :resume
     delete "/subscription",             BillingController, :cancel
 
-    get "/congress/recent",         CongressController, :recent
-    get "/congress/search",         CongressController, :search
-    get "/congress/summary",        CongressController, :summary
-    get "/congress/ticker/:ticker", CongressController, :by_ticker
+    get  "/congress/recent",         CongressController, :recent
+    get  "/congress/search",         CongressController, :search
+    get  "/congress/summary",        CongressController, :summary
+    get  "/congress/ticker/:ticker", CongressController, :by_ticker
+    post "/congress/refresh",        CongressController, :refresh
 
     get "/account", AccountController, :show
 

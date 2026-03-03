@@ -4,13 +4,17 @@ defmodule UwBilling.Workers.CongressTradePoller do
   stores them in Postgres via UwBilling.Congress.upsert_trade/1.
 
   Data source (in priority order):
-    1. Unusual Whales API — if UW_API_KEY is set, uses /api/congress/recent-trades
-    2. EDGAR EFTS public endpoint — no auth required, covers SEC Form 4 filings
+    1. Unusual Whales API — DB-stored key (set via Settings page) takes priority
+    2. Unusual Whales API — UW_API_KEY env var fallback
+    3. EDGAR EFTS public endpoint — no auth required, covers SEC Form 4 filings
 
   Why this exists: UW's core brand identity is congressional trading transparency.
   Including this in the demo shows domain awareness beyond the technical requirements.
   """
-  use Oban.Worker, queue: :analytics, unique: [period: 3_600], max_attempts: 3
+  use Oban.Worker,
+    queue: :analytics,
+    unique: [period: 3_600, states: [:available, :scheduled, :executing, :retryable]],
+    max_attempts: 3
 
   alias UwBilling.Congress
   require Logger
@@ -36,9 +40,17 @@ defmodule UwBilling.Workers.CongressTradePoller do
   end
 
   defp fetch_disclosures do
-    case System.get_env("UW_API_KEY") do
+    api_key = stored_uw_key() || System.get_env("UW_API_KEY")
+    case api_key do
       nil -> fetch_from_edgar()
       key -> fetch_from_uw(key)
+    end
+  end
+
+  defp stored_uw_key do
+    case UwBilling.Config.get_app_config() do
+      {:ok, %{uw_api_key: key}} when is_binary(key) and byte_size(key) > 0 -> key
+      _ -> nil
     end
   end
 
@@ -75,7 +87,7 @@ defmodule UwBilling.Workers.CongressTradePoller do
   defp parse_uw_trade(raw) do
     %{
       trader_name:      raw["representative"] || raw["senator"] || "Unknown",
-      ticker:           String.upcase(raw["ticker"] || ""),
+      ticker:           String.upcase(raw["ticker"] || raw["symbol"] || "UNKNOWN"),
       transaction_type: parse_tx_type(raw["transaction_type"]),
       amount_range:     raw["amount"] || raw["estimated_value"],
       filed_at:         parse_date(raw["filed_at"] || raw["disclosure_date"]),
@@ -84,16 +96,48 @@ defmodule UwBilling.Workers.CongressTradePoller do
   end
 
   defp parse_edgar_hit(%{"_source" => src}) do
-    [%{
-      trader_name:      src["entity_name"] || "Unknown",
-      ticker:           src["ticker"] || "",
-      transaction_type: :purchase,
-      amount_range:     nil,
-      filed_at:         parse_date(src["file_date"]),
-      traded_at:        parse_date(src["period_of_report"])
-    }]
+    case extract_ticker(src["display_names"]) do
+      nil -> []
+      ticker ->
+        [%{
+          trader_name:      extract_entity_name(src["display_names"]) || "Unknown",
+          ticker:           ticker,
+          transaction_type: parse_edgar_tx_type(src),
+          amount_range:     nil,
+          filed_at:         parse_date(src["file_date"]),
+          traded_at:        parse_date(src["period_of_report"] || src["period_ending"])
+        }]
+    end
   end
   defp parse_edgar_hit(_), do: []
+
+  defp extract_ticker(nil), do: nil
+  defp extract_ticker(names) when is_list(names) do
+    Enum.find_value(names, fn name ->
+      case Regex.run(~r/\(([A-Z]{1,5})\)/, name) do
+        [_, ticker] -> ticker
+        _           -> nil
+      end
+    end)
+  end
+  defp extract_ticker(_), do: nil
+
+  defp extract_entity_name(nil), do: nil
+  defp extract_entity_name([first | _]) do
+    first |> String.replace(~r/\s*\([^)]+\)\s*$/, "") |> String.trim()
+  end
+  defp extract_entity_name(_), do: nil
+
+  defp parse_edgar_tx_type(%{"transactionCode" => code}) when is_binary(code) do
+    case String.upcase(code) do
+      "P" -> :purchase
+      "S" -> :sale
+      "A" -> :purchase
+      "D" -> :sale
+      _   -> :exchange
+    end
+  end
+  defp parse_edgar_tx_type(_), do: :exchange
 
   defp parse_tx_type(t) when is_binary(t) do
     t = String.downcase(t)

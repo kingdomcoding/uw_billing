@@ -13,7 +13,7 @@ createRoot(container).render(
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/trades" replace />} />
-        <Route path="setup"   element={<SetupPage />} />
+        <Route path="settings" element={<SetupPage />} />
         <Route path="usage"   element={<UsagePage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="trades"  element={<TradesPage />} />

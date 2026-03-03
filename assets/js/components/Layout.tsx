@@ -3,10 +3,10 @@ import { NavLink, Outlet } from "react-router-dom"
 import { api, StripeConfigStatus } from "../api"
 
 const ALL_NAV = [
-  { to: "/trades",  label: "Trades" },
-  { to: "/usage",   label: "API Usage" },
-  { to: "/billing", label: "Billing" },
-  { to: "/setup",   label: "Stripe Setup" },
+  { to: "/trades",   label: "Trades" },
+  { to: "/usage",    label: "API Usage" },
+  { to: "/billing",  label: "Billing" },
+  { to: "/settings", label: "Settings" },
 ]
 
 export default function Layout() {
@@ -63,7 +63,7 @@ export default function Layout() {
 
           <div className="flex items-stretch gap-6">
             {ALL_NAV.map(({ to, label }) => {
-              const isStripeSetup = to === "/setup"
+              const isStripeSetup = to === "/settings"
               return (
                 <NavLink
                   key={to} to={to}

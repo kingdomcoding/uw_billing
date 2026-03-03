@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
-import { api, StripeCredentials, StripeConfigStatus } from "../api"
+import { api, StripeCredentials, StripeConfigStatus, UwConfigStatus } from "../api"
 
 type OutletCtx = { refreshStripe: () => void; refreshSub: () => void }
 type FormState = { secret_key: string; webhook_secret: string }
@@ -20,8 +20,18 @@ export default function SetupPage() {
   const [elapsed, setElapsed]         = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const [uwStatus, setUwStatus]       = useState<UwConfigStatus | null>(null)
+  const [uwKey, setUwKey]             = useState("")
+  const [savingUw, setSavingUw]       = useState(false)
+  const [clearingUw, setClearingUw]   = useState(false)
+
   const load = () => api.stripeConfig().then(setStatus).catch(() => {})
-  useEffect(() => { load() }, [])
+  const loadUw = () => api.uwConfig().then(setUwStatus).catch(() => {})
+
+  useEffect(() => {
+    load()
+    loadUw()
+  }, [])
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }))
@@ -89,6 +99,32 @@ export default function SetupPage() {
     }
   }
 
+  const handleSaveUw = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingUw(true)
+    try {
+      await api.saveUwKey(uwKey)
+      setUwKey("")
+      await loadUw()
+    } catch (err) {
+      setGlobalError((err as Error).message ?? "Failed to save UW API key")
+    } finally {
+      setSavingUw(false)
+    }
+  }
+
+  const handleClearUw = async () => {
+    setClearingUw(true)
+    try {
+      await api.clearUwKey()
+      await loadUw()
+    } catch (err) {
+      setGlobalError((err as Error).message ?? "Failed to clear UW API key")
+    } finally {
+      setClearingUw(false)
+    }
+  }
+
   if (prov === "provisioning" || prov === "done") {
     return (
       <div className="max-w-full">
@@ -143,136 +179,202 @@ export default function SetupPage() {
   const revertAvailable  = customConfigured && envConfigured
   const webhookUrl       = `${window.location.origin}/webhooks/stripe`
 
+  const uwConfigured    = uwStatus?.configured    === true
+  const uwEnvConfigured = uwStatus?.env_configured === true
+
   return (
     <div className="space-y-8 max-w-full">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Stripe Setup</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Enter your Stripe test credentials. Pro and Premium products will be created
-          in your account automatically.
+          Configure your Stripe and Unusual Whales credentials.
         </p>
       </div>
 
-      {customConfigured && (
-        <div className="bg-green-50 border border-green-300 rounded-lg p-4 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-green-800">
-              ✓ Using your Stripe credentials (verified {status?.verified_at?.slice(0, 10)})
-            </p>
-            <p className="text-xs text-green-700 mt-0.5">
-              Re-enter credentials below to update them.
-            </p>
-          </div>
-          {revertAvailable && (
-            <button
-              type="button" onClick={handleDisable} disabled={disabling}
-              className="text-xs px-2.5 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:border-red-400 hover:text-red-600 whitespace-nowrap disabled:opacity-50">
-              {disabling ? "Reverting…" : "Revert to app defaults"}
-            </button>
-          )}
+      {globalError && (
+        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
+          {globalError}
         </div>
       )}
 
-      {!customConfigured && envConfigured && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">
-            The app is running with my default Stripe credentials.
-            Enter your own below to use your Stripe account instead.
-          </p>
-        </div>
-      )}
+      {/* ── Stripe section ── */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Stripe</h2>
 
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-sm text-gray-800 space-y-4">
-        <div className="font-semibold text-gray-700">What you need from Stripe</div>
-
-        <div className="space-y-1">
-          <div className="font-medium text-gray-700">Step 1 — Get your Secret Key</div>
-          <p className="text-gray-600">
-            Log in to{" "}
-            <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer"
-              className="underline text-blue-600">dashboard.stripe.com</a>{" "}
-            in test mode → Developers → API keys → copy the{" "}
-            <code className="bg-gray-200 px-1 rounded">sk_test_...</code> key.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <div className="font-medium text-gray-700">Step 2 — Register the webhook endpoint</div>
-          <p className="text-xs text-gray-500 mb-1">
-            Your webhook URL:{" "}
-            <code className="bg-gray-200 px-1 rounded font-mono">{webhookUrl}</code>
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
-              <div className="text-xs font-semibold text-gray-700">Option A — Stripe Dashboard</div>
-              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-                <li>Developers → Webhooks → Add endpoint</li>
-                <li>URL: <code className="bg-gray-100 px-0.5 rounded break-all">{webhookUrl}</code></li>
-                <li>Subscribe to <code className="bg-gray-100 px-0.5 rounded">customer.subscription.*</code> and <code className="bg-gray-100 px-0.5 rounded">invoice.*</code></li>
-                <li>Copy the Signing secret (<code className="bg-gray-100 px-0.5 rounded">whsec_...</code>)</li>
-              </ol>
-            </div>
-            <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
-              <div className="text-xs font-semibold text-gray-700">Option B — CLI forwarder (local)</div>
-              <p className="text-xs text-gray-600">Keep this running while you test:</p>
-              <pre className="bg-gray-100 rounded p-2 text-xs font-mono break-all whitespace-pre-wrap">{`stripe listen --forward-to ${webhookUrl}`}</pre>
-              <p className="text-xs text-gray-500">
-                Copy the <code className="bg-gray-100 px-0.5 rounded">whsec_...</code> secret printed in the terminal.
+        {customConfigured && (
+          <div className="bg-green-50 border border-green-300 rounded-lg p-4 flex items-start justify-between gap-4 mb-4">
+            <div>
+              <p className="text-sm font-medium text-green-800">
+                ✓ Using your Stripe credentials (verified {status?.verified_at?.slice(0, 10)})
+              </p>
+              <p className="text-xs text-green-700 mt-0.5">
+                Re-enter credentials below to update them.
               </p>
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <div className="font-medium text-gray-700">Step 3 — Enter both values below and click Verify &amp; Save</div>
-          <p className="text-gray-600">
-            The app will validate your key and automatically create Pro ($49/mo) and Premium
-            ($99/mo) products in your Stripe account, then provision a demo subscription.
-          </p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
-        {globalError && (
-          <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
-            {globalError}
+            {revertAvailable && (
+              <button
+                type="button" onClick={handleDisable} disabled={disabling}
+                className="text-xs px-2.5 py-1 border border-gray-300 rounded bg-white text-gray-600 hover:border-red-400 hover:text-red-600 whitespace-nowrap disabled:opacity-50">
+                {disabling ? "Reverting…" : "Revert to app defaults"}
+              </button>
+            )}
           </div>
         )}
 
-        {([
-          { field: "secret_key",     label: "Secret Key",             placeholder: "sk_test_...", type: "password" },
-          { field: "webhook_secret", label: "Webhook Signing Secret", placeholder: "whsec_...",  type: "password" },
-        ] as const).map(({ field, label, placeholder, type }) => (
-          <div key={field}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-            {customConfigured && (
-              <p className="text-xs text-gray-400 mb-1">
-                Currently set (masked). Leave blank to keep existing, or enter a new value to replace.
-              </p>
-            )}
-            <input
-              type={type} value={form[field]} onChange={set(field)} placeholder={placeholder}
-              className={`w-full text-sm text-gray-900 border rounded px-3 py-2 font-mono ${
-                errors[field] ? "border-red-400 bg-red-50" : "border-gray-200 bg-white"
-              }`}
-            />
-            {errors[field] && <p className="text-xs text-red-600 mt-1">{errors[field]}</p>}
+        {!customConfigured && envConfigured && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-blue-800">
+              The app is running with my default Stripe credentials.
+              Enter your own below to use your Stripe account instead.
+            </p>
           </div>
-        ))}
+        )}
 
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            type="submit" disabled={submitting}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
-            {submitting ? "Verifying with Stripe…" : "Verify & Save"}
-          </button>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-sm text-gray-800 space-y-4">
+          <div className="font-semibold text-gray-700">What you need from Stripe</div>
+
+          <div className="space-y-1">
+            <div className="font-medium text-gray-700">Step 1 — Get your Secret Key</div>
+            <p className="text-gray-600">
+              Log in to{" "}
+              <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer"
+                className="underline text-blue-600">dashboard.stripe.com</a>{" "}
+              in test mode → Developers → API keys → copy the{" "}
+              <code className="bg-gray-200 px-1 rounded">sk_test_...</code> key.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="font-medium text-gray-700">Step 2 — Register the webhook endpoint</div>
+            <p className="text-xs text-gray-500 mb-1">
+              Your webhook URL:{" "}
+              <code className="bg-gray-200 px-1 rounded font-mono">{webhookUrl}</code>
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
+                <div className="text-xs font-semibold text-gray-700">Option A — Stripe Dashboard</div>
+                <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                  <li>Developers → Webhooks → Add endpoint</li>
+                  <li>URL: <code className="bg-gray-100 px-0.5 rounded break-all">{webhookUrl}</code></li>
+                  <li>Subscribe to <code className="bg-gray-100 px-0.5 rounded">customer.subscription.*</code> and <code className="bg-gray-100 px-0.5 rounded">invoice.*</code></li>
+                  <li>Copy the Signing secret (<code className="bg-gray-100 px-0.5 rounded">whsec_...</code>)</li>
+                </ol>
+              </div>
+              <div className="bg-white border border-gray-200 rounded p-3 space-y-1">
+                <div className="text-xs font-semibold text-gray-700">Option B — CLI forwarder (local)</div>
+                <p className="text-xs text-gray-600">Keep this running while you test:</p>
+                <pre className="bg-gray-100 rounded p-2 text-xs font-mono break-all whitespace-pre-wrap">{`stripe listen --forward-to ${webhookUrl}`}</pre>
+                <p className="text-xs text-gray-500">
+                  Copy the <code className="bg-gray-100 px-0.5 rounded">whsec_...</code> secret printed in the terminal.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="font-medium text-gray-700">Step 3 — Enter both values below and click Verify &amp; Save</div>
+            <p className="text-gray-600">
+              The app will validate your key and automatically create Pro ($49/mo) and Premium
+              ($99/mo) products in your Stripe account, then provision a demo subscription.
+            </p>
+          </div>
         </div>
-      </form>
 
-      <p className="text-xs text-gray-500">
-        In a real deployment these credentials would be environment variables managed as secrets.
-        This page exists solely for demo convenience.
-      </p>
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5 mt-4">
+          {([
+            { field: "secret_key",     label: "Secret Key",             placeholder: "sk_test_...", type: "password" },
+            { field: "webhook_secret", label: "Webhook Signing Secret", placeholder: "whsec_...",  type: "password" },
+          ] as const).map(({ field, label, placeholder, type }) => (
+            <div key={field}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+              {customConfigured && (
+                <p className="text-xs text-gray-400 mb-1">
+                  Currently set (masked). Leave blank to keep existing, or enter a new value to replace.
+                </p>
+              )}
+              <input
+                type={type} value={form[field]} onChange={set(field)} placeholder={placeholder}
+                className={`w-full text-sm text-gray-900 border rounded px-3 py-2 font-mono ${
+                  errors[field] ? "border-red-400 bg-red-50" : "border-gray-200 bg-white"
+                }`}
+              />
+              {errors[field] && <p className="text-xs text-red-600 mt-1">{errors[field]}</p>}
+            </div>
+          ))}
+
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="submit" disabled={submitting}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
+              {submitting ? "Verifying with Stripe…" : "Verify & Save"}
+            </button>
+          </div>
+        </form>
+
+        <p className="text-xs text-gray-500 mt-4">
+          In a real deployment these credentials would be environment variables managed as secrets.
+          This page exists solely for demo convenience.
+        </p>
+      </div>
+
+      {/* ── Unusual Whales API section ── */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1">Unusual Whales API</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Optional. When set, congressional trade data uses the Unusual Whales API
+          instead of the public SEC EDGAR fallback — giving you real transaction
+          types and amount ranges.
+        </p>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-sm text-gray-800 space-y-2 mb-4">
+          <div className="font-semibold text-gray-700">How to get your API key</div>
+          <p className="text-gray-600">
+            Log in to{" "}
+            <a href="https://unusualwhales.com" target="_blank" rel="noreferrer"
+              className="underline text-blue-600">unusualwhales.com</a>
+            {" "}→ Account → API. Copy your{" "}
+            <code className="bg-gray-200 px-1 rounded">uw_live_...</code> key and paste it below.
+            Congressional trade data requires a paid plan.
+          </p>
+        </div>
+
+        {uwConfigured && (
+          <div className="bg-green-50 border border-green-300 rounded-lg p-4 flex items-start justify-between gap-4 mb-4">
+            <p className="text-sm font-medium text-green-800">
+              ✓ Using your Unusual Whales API key
+            </p>
+            <button onClick={handleClearUw} disabled={clearingUw}
+              className="text-xs px-2.5 py-1 border border-gray-300 rounded bg-white text-gray-600
+                         hover:border-red-400 hover:text-red-600 whitespace-nowrap disabled:opacity-50">
+              {clearingUw ? "Clearing…" : "Clear key"}
+            </button>
+          </div>
+        )}
+
+        {!uwConfigured && uwEnvConfigured && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-blue-800">
+              Using the <code className="font-mono bg-blue-100 px-1 rounded">UW_API_KEY</code> environment variable.
+              Enter a key below to override it with a DB-stored value.
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveUw} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+            <input
+              type="password" value={uwKey} onChange={e => setUwKey(e.target.value)}
+              placeholder="uw_live_..."
+              className="w-full text-sm text-gray-900 border border-gray-200 rounded px-3 py-2 font-mono bg-white"
+            />
+          </div>
+          <button type="submit" disabled={savingUw || !uwKey.trim()}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
+            {savingUw ? "Saving…" : "Save Key"}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

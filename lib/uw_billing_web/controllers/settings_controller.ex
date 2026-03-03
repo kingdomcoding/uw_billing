@@ -267,6 +267,39 @@ defmodule UwBillingWeb.SettingsController do
     end
   end
 
+  def show_uw(conn, _params) do
+    configured =
+      case UwBilling.Config.get_app_config() do
+        {:ok, %{uw_api_key: key}} when is_binary(key) and byte_size(key) > 0 -> true
+        _ -> false
+      end
+
+    json(conn, %{
+      configured: configured,
+      env_configured: not is_nil(System.get_env("UW_API_KEY"))
+    })
+  end
+
+  def save_uw(conn, %{"uw_api_key" => key}) when byte_size(key) > 0 do
+    case UwBilling.Config.save_app_config(%{uw_api_key: key}) do
+      {:ok, _} -> json(conn, %{ok: true})
+      {:error, _} -> conn |> put_status(422) |> json(%{error: "Failed to save key"})
+    end
+  end
+
+  def save_uw(conn, _params) do
+    conn |> put_status(422) |> json(%{error: "uw_api_key required"})
+  end
+
+  def clear_uw(conn, _params) do
+    case UwBilling.Config.get_app_config() do
+      {:ok, config} -> UwBilling.Config.clear_uw_api_key(config)
+      _ -> :ok
+    end
+
+    json(conn, %{ok: true})
+  end
+
   defp env_configured? do
     [
       System.get_env("STRIPE_SECRET_KEY"),

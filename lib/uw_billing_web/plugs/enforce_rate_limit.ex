@@ -2,7 +2,6 @@ defmodule UwBillingWeb.Plugs.EnforceRateLimit do
   @behaviour Plug
 
   import Plug.Conn
-  require Logger
 
   alias UwBilling.Usage.ClickHouse
 
@@ -36,39 +35,32 @@ defmodule UwBillingWeb.Plugs.EnforceRateLimit do
     if plan_tier == "premium" do
       conn
     else
-      user_id = conn.assigns[:current_user_id]
+      limit = conn.assigns[:plan_limit]
 
-      case get_limit(user_id) do
-        nil ->
-          conn
+      if is_nil(limit) do
+        conn
+      else
+        user_id = conn.assigns[:current_user_id]
 
-        limit ->
-          case ClickHouse.monthly_count(user_id) do
-            {:ok, count} when count >= limit ->
-              conn
-              |> put_status(429)
-              |> put_resp_content_type("application/json")
-              |> send_resp(
-                429,
-                Jason.encode!(%{
-                  error: "Monthly request limit exceeded",
-                  limit: limit,
-                  message: "Upgrade to Premium for unlimited requests."
-                })
-              )
-              |> halt()
+        case ClickHouse.monthly_count(user_id) do
+          {:ok, count} when count >= limit ->
+            conn
+            |> put_status(429)
+            |> put_resp_content_type("application/json")
+            |> send_resp(
+              429,
+              Jason.encode!(%{
+                error: "Monthly request limit exceeded",
+                limit: limit,
+                message: "Upgrade to Premium for unlimited requests."
+              })
+            )
+            |> halt()
 
-            _ ->
-              conn
-          end
+          _ ->
+            conn
+        end
       end
-    end
-  end
-
-  defp get_limit(user_id) do
-    case UwBilling.Billing.get_active_subscription(user_id) do
-      {:ok, [%{plan: %{api_request_limit: limit}} | _]} -> limit
-      _ -> nil
     end
   end
 

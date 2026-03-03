@@ -29,6 +29,12 @@ export interface Invoice {
 // ── Account types ───────────────────────────────────────────────────────────
 export interface AccountInfo { email: string; api_key: string }
 
+// ── UW config types ─────────────────────────────────────────────────────────
+export interface UwConfigStatus {
+  configured: boolean
+  env_configured: boolean
+}
+
 // ── Settings types ──────────────────────────────────────────────────────────
 export interface StripeConfigStatus {
   env_configured: boolean
@@ -138,4 +144,9 @@ export const api = {
   tradesByTicker: (ticker: string)    => get<CongressTrade[]>(`/congress/ticker/${ticker}`),
   tradeSummary:   ()                  => get<CongressSummary[]>("/congress/summary"),
   searchTrades:   (q: string)         => get<CongressTrade[]>(`/congress/search?q=${encodeURIComponent(q)}`),
+  refreshTrades:  ()                  => post<{ ok: boolean }>("/congress/refresh"),
+
+  uwConfig:   ()                        => publicGet<UwConfigStatus>("/setup/uw"),
+  saveUwKey:  (uw_api_key: string)      => publicPost<{ ok: boolean }>("/setup/uw/save", { uw_api_key }),
+  clearUwKey: ()                        => publicDel("/setup/uw"),
 }

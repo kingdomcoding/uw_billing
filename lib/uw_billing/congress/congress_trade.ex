@@ -48,6 +48,7 @@ defmodule UwBilling.Congress.CongressTrade do
       accept [:trader_name, :ticker, :transaction_type, :amount_range, :filed_at, :traded_at]
       upsert? true
       upsert_identity :unique_disclosure
+      upsert_fields [:filed_at, :amount_range]
     end
 
     read :recent do
@@ -58,7 +59,7 @@ defmodule UwBilling.Congress.CongressTrade do
       prepare fn query, _ ->
         limit = Ash.Query.get_argument(query, :limit) || 20
         query
-        |> Ash.Query.sort(inserted_at: :desc)
+        |> Ash.Query.sort(filed_at: :desc, inserted_at: :desc)
         |> Ash.Query.limit(limit)
       end
     end
@@ -68,10 +69,17 @@ defmodule UwBilling.Congress.CongressTrade do
         allow_nil? false
       end
 
+      argument :limit, :integer do
+        default 200
+      end
+
       filter expr(ticker == ^arg(:ticker))
 
       prepare fn query, _ ->
-        Ash.Query.sort(query, traded_at: :desc)
+        limit = Ash.Query.get_argument(query, :limit) || 200
+        query
+        |> Ash.Query.sort(traded_at: :desc)
+        |> Ash.Query.limit(limit)
       end
     end
 
