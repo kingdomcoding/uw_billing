@@ -8,6 +8,9 @@ defmodule UwBilling.Usage.SeedDemo do
     "/api/congress/search"
   ]
 
+  # Relative popularity per endpoint — most to least. Must sum to 1.0.
+  @endpoint_weights [0.40, 0.30, 0.20, 0.10]
+
   @target_monthly 82_000
 
   # Idempotent — skips if the user already has rows in ClickHouse.
@@ -32,27 +35,50 @@ defmodule UwBilling.Usage.SeedDemo do
     today = Date.utc_today()
     month_start = Date.new!(today.year, today.month, 1)
 
-    # Rows per day per endpoint to reach @target_monthly using days elapsed this month.
-    # e.g. on March 3:  ceil(82_000 / (3 * 4)) = 6_834/day/endpoint × 4 × 3 = 82_008 ✓
-    # e.g. on March 25: ceil(82_000 / (25 * 4)) = 820/day/endpoint × 4 × 25 = 82_000 ✓
-    rows_this_month = ceil(@target_monthly / (today.day * length(@endpoints)))
-    rows_history = 500
+    # Random total-requests-per-day for current month, scaled so sum ≈ @target_monthly.
+    raw_day_weights = Enum.map(1..today.day, fn _ -> :rand.uniform() end)
+    weight_sum = Enum.sum(raw_day_weights)
+
+    day_totals =
+      raw_day_weights
+      |> Enum.map(&round(@target_monthly * &1 / weight_sum))
+      |> Enum.with_index(1)
+      |> Map.new(fn {count, day} -> {day, count} end)
+
+    endpoint_pairs = Enum.zip(@endpoints, @endpoint_weights)
 
     rows =
       Enum.flat_map(29..0//-1, fn day_offset ->
         date = Date.add(today, -day_offset)
+        ts = DateTime.new!(date, ~T[12:00:00])
 
-        count =
-          if Date.compare(date, month_start) != :lt,
-            do: rows_this_month,
-            else: rows_history
+        if Date.compare(date, month_start) != :lt do
+          day_total = Map.get(day_totals, date.day, 0)
 
-        for endpoint <- @endpoints, _ <- 1..count do
-          ts = DateTime.new!(date, ~T[12:00:00])
-          latency = 18.0 + :rand.uniform(40) * 1.0
-          error = if :rand.uniform(100) <= 2, do: 1, else: 0
-          status = if error == 1, do: 500, else: 200
-          [user_int, "pro", "GET", endpoint, status, latency, error, ts]
+          Enum.flat_map(endpoint_pairs, fn {endpoint, weight} ->
+            count = max(1, round(day_total * weight))
+
+            for _ <- 1..count do
+              latency = 18.0 + :rand.uniform(40) * 1.0
+              error = if :rand.uniform(100) <= 2, do: 1, else: 0
+              status = if error == 1, do: 500, else: 200
+              [user_int, "pro", "GET", endpoint, status, latency, error, ts]
+            end
+          end)
+        else
+          # History: randomize ±50% around 500 per day, with same endpoint weighting.
+          day_total = round(250 + :rand.uniform(500))
+
+          Enum.flat_map(endpoint_pairs, fn {endpoint, weight} ->
+            count = max(1, round(day_total * weight))
+
+            for _ <- 1..count do
+              latency = 18.0 + :rand.uniform(40) * 1.0
+              error = if :rand.uniform(100) <= 2, do: 1, else: 0
+              status = if error == 1, do: 500, else: 200
+              [user_int, "pro", "GET", endpoint, status, latency, error, ts]
+            end
+          end)
         end
       end)
 
