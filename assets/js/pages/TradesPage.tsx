@@ -98,8 +98,13 @@ export default function TradesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-gray-900">Congressional Trades</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Congressional Trades</h1>
+          <p className="mt-1 text-xs text-gray-500">
+            STOCK Act disclosures sourced from the Unusual Whales API (EDGAR EFTS fallback) · polled every 6 hours · disclosure required within 45 days of trade
+          </p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <input
             type="text"
@@ -213,8 +218,24 @@ export default function TradesPage() {
           <tbody>
             {visibleTrades.map((t, i) => (
               <tr key={t.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                <td className="p-4 text-gray-700">{t.trader_name}</td>
-                <td className="p-4 font-mono font-semibold text-blue-600">{t.ticker}</td>
+                <td className="p-4 text-gray-700">
+                  <span>{t.trader_name}</span>
+                  {t.issuer && t.issuer !== "self" && (
+                    <span className="ml-1.5 text-xs text-gray-400">({t.issuer})</span>
+                  )}
+                </td>
+                <td className="p-4 font-mono font-semibold text-blue-600">
+                  {t.ticker}
+                  {t.member_type && (
+                    <span className={`ml-1.5 text-xs font-sans font-normal px-1 rounded ${
+                      t.member_type === "house"
+                        ? "bg-blue-50 text-blue-500"
+                        : "bg-purple-50 text-purple-500"
+                    }`}>
+                      {t.member_type === "house" ? "H" : "S"}
+                    </span>
+                  )}
+                </td>
                 <td className="p-4 text-center"><StatusBadge status={t.transaction_type} /></td>
                 <td className="p-4 text-gray-500 text-xs">{t.amount_range ?? "—"}</td>
                 <td className="p-4 text-right text-gray-500">{fmt(t.traded_at)}</td>
@@ -243,10 +264,6 @@ export default function TradesPage() {
         </p>
       </div>
 
-      <p className="text-xs text-gray-500">
-        Data sourced via the Unusual Whales API (or EDGAR EFTS as fallback).
-        Polled every 6 hours via Oban cron. STOCK Act requires disclosure within 45 days of trade.
-      </p>
     </div>
   )
 }

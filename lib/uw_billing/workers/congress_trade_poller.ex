@@ -56,6 +56,7 @@ defmodule UwBilling.Workers.CongressTradePoller do
 
   defp fetch_from_uw(api_key) do
     case Req.get("#{@uw_api_base}/api/congress/recent-trades",
+           params: [limit: 200],
            headers: [{"Authorization", "Bearer #{api_key}"}, {"Accept", "application/json"}],
            receive_timeout: 15_000) do
       {:ok, %{status: 200, body: %{"data" => trades}}} ->
@@ -86,12 +87,15 @@ defmodule UwBilling.Workers.CongressTradePoller do
 
   defp parse_uw_trade(raw) do
     %{
-      trader_name:      raw["representative"] || raw["senator"] || "Unknown",
+      trader_name:      raw["name"] || raw["reporter"] || "Unknown",
       ticker:           String.upcase(raw["ticker"] || raw["symbol"] || "UNKNOWN"),
-      transaction_type: parse_tx_type(raw["transaction_type"]),
-      amount_range:     raw["amount"] || raw["estimated_value"],
-      filed_at:         parse_date(raw["filed_at"] || raw["disclosure_date"]),
-      traded_at:        parse_date(raw["transaction_date"])
+      transaction_type: parse_tx_type(raw["txn_type"]),
+      amount_range:     raw["amounts"],
+      filed_at:         parse_date(raw["filed_at_date"]),
+      traded_at:        parse_date(raw["transaction_date"]),
+      politician_id:    raw["politician_id"],
+      issuer:           raw["issuer"],
+      member_type:      raw["member_type"]
     }
   end
 
@@ -142,9 +146,9 @@ defmodule UwBilling.Workers.CongressTradePoller do
   defp parse_tx_type(t) when is_binary(t) do
     t = String.downcase(t)
     cond do
-      String.contains?(t, "purchase") -> :purchase
-      String.contains?(t, "sale")     -> :sale
-      true                            -> :exchange
+      String.contains?(t, "purchase") or String.contains?(t, "buy")  -> :purchase
+      String.contains?(t, "sale")     or String.contains?(t, "sell") -> :sale
+      true                                                            -> :exchange
     end
   end
   defp parse_tx_type(_), do: :exchange

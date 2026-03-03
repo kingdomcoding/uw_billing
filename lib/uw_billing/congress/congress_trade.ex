@@ -36,6 +36,18 @@ defmodule UwBilling.Congress.CongressTrade do
       allow_nil? true
     end
 
+    attribute :politician_id, :string do
+      allow_nil? true
+    end
+
+    attribute :issuer, :string do
+      allow_nil? true
+    end
+
+    attribute :member_type, :string do
+      allow_nil? true
+    end
+
     create_timestamp :inserted_at
   end
 
@@ -45,10 +57,11 @@ defmodule UwBilling.Congress.CongressTrade do
 
   actions do
     create :from_disclosure do
-      accept [:trader_name, :ticker, :transaction_type, :amount_range, :filed_at, :traded_at]
+      accept [:trader_name, :ticker, :transaction_type, :amount_range, :filed_at, :traded_at,
+              :politician_id, :issuer, :member_type]
       upsert? true
       upsert_identity :unique_disclosure
-      upsert_fields [:filed_at, :amount_range]
+      upsert_fields [:trader_name, :filed_at, :amount_range, :politician_id, :issuer, :member_type]
     end
 
     read :recent do

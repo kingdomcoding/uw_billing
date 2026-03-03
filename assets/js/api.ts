@@ -66,9 +66,17 @@ export type StripeVerifyResult =
 
 // ── Congress types ──────────────────────────────────────────────────────────
 export interface CongressTrade {
-  id: string; trader_name: string; ticker: string
-  transaction_type: string; amount_range: string | null
-  traded_at: string | null; filed_at: string
+  id: string
+  trader_name: string
+  ticker: string
+  transaction_type: "purchase" | "sale" | "exchange"
+  amount_range: string | null
+  filed_at: string | null
+  traded_at: string | null
+  inserted_at: string
+  politician_id: string | null
+  issuer: "self" | "spouse" | "joint" | "child" | "undisclosed" | null
+  member_type: "house" | "senate" | null
 }
 export interface CongressSummary { ticker: string; trades: number; latest_filed: string }
 

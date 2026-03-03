@@ -2,7 +2,7 @@ defmodule UwBillingWeb.CongressController do
   use UwBillingWeb, :controller
 
   def recent(conn, params) do
-    limit = Map.get(params, "limit", "50") |> parse_int(50) |> min(100)
+    limit = Map.get(params, "limit", "50") |> parse_int(50) |> min(200)
 
     case UwBilling.Congress.recent_trades(limit) do
       {:ok, trades} -> json(conn, Enum.map(trades, &serialize/1))
@@ -45,14 +45,17 @@ defmodule UwBillingWeb.CongressController do
 
   defp serialize(trade) do
     %{
-      id: trade.id,
-      trader_name: trade.trader_name,
-      ticker: trade.ticker,
+      id:             trade.id,
+      trader_name:    trade.trader_name,
+      ticker:         trade.ticker,
       transaction_type: trade.transaction_type,
-      amount_range: trade.amount_range,
-      filed_at: trade.filed_at,
-      traded_at: trade.traded_at,
-      inserted_at: trade.inserted_at
+      amount_range:   trade.amount_range,
+      filed_at:       trade.filed_at,
+      traded_at:      trade.traded_at,
+      inserted_at:    trade.inserted_at,
+      politician_id:  trade.politician_id,
+      issuer:         trade.issuer,
+      member_type:    trade.member_type
     }
   end
 
