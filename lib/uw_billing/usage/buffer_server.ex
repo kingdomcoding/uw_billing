@@ -48,16 +48,12 @@ defmodule UwBilling.Usage.BufferServer do
     events = Enum.reverse(buffer)
     rows = Enum.map(events, &event_to_row/1)
 
-    query = """
-    INSERT INTO uw_billing.api_requests
-    (user_id, plan_tier, method, path, status_code, duration_ms, error, timestamp)
-    VALUES
-    """
+    query = "INSERT INTO uw_billing.api_requests FORMAT RowBinaryWithNamesAndTypes"
 
-    case Ch.query(UwBilling.CH, query, rows, types: [
-      "UInt64", "LowCardinality(String)", "LowCardinality(String)",
-      "LowCardinality(String)", "UInt16", "Float32", "UInt8", "DateTime"
-    ]) do
+    names = ["user_id", "plan_tier", "method", "path", "status_code", "duration_ms", "error", "timestamp"]
+    types = ["UInt64", "LowCardinality(String)", "LowCardinality(String)", "LowCardinality(String)", "UInt16", "Float32", "UInt8", "DateTime"]
+
+    case Ch.query(UwBilling.CH, query, rows, names: names, types: types) do
       {:ok, _} -> :ok
       {:error, reason} -> require Logger; Logger.warning("BufferServer flush failed: #{inspect(reason)}")
     end

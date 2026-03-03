@@ -13,7 +13,7 @@ defmodule UwBilling.Usage.ClickHouse do
     """
 
     case Ch.query(UwBilling.CH, query, %{user_id: to_user_int(user_id), days: days}) do
-      {:ok, %{rows: rows, headers: headers}} -> {:ok, to_maps(headers, rows)}
+      {:ok, %{rows: rows, columns: columns}} -> {:ok, to_maps(columns, rows)}
       {:error, _} = err -> err
     end
   end
@@ -32,7 +32,7 @@ defmodule UwBilling.Usage.ClickHouse do
     """
 
     case Ch.query(UwBilling.CH, query, %{user_id: to_user_int(user_id)}) do
-      {:ok, %{rows: rows, headers: headers}} -> {:ok, to_maps(headers, rows)}
+      {:ok, %{rows: rows, columns: columns}} -> {:ok, to_maps(columns, rows)}
       {:error, _} = err -> err
     end
   end
@@ -69,15 +69,15 @@ defmodule UwBilling.Usage.ClickHouse do
     end
   end
 
-  defp to_maps(headers, rows) do
+  defp to_maps(columns, rows) do
     Enum.map(rows, fn row ->
-      Enum.zip(headers, row) |> Map.new()
+      Enum.zip(columns, row) |> Map.new()
     end)
   end
 
   defp to_user_int(user_id) when is_binary(user_id) do
-    <<int::unsigned-128>> = Base.decode16!(String.replace(user_id, "-", ""), case: :mixed)
-    int
+    <<_::64, low::unsigned-64>> = Base.decode16!(String.replace(user_id, "-", ""), case: :mixed)
+    low
   end
 
   defp to_user_int(user_id) when is_integer(user_id), do: user_id

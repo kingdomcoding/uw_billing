@@ -41,9 +41,9 @@ function ApiSandbox({ onRefresh }: { onRefresh: () => void }) {
 
   const resolvedPath = (() => {
     if (endpoint.inputType === "ticker")
-      return endpoint.path.replace(":ticker", ticker.toUpperCase().trim() || "NVDA")
+      return endpoint.path.replace(":ticker", ticker.toUpperCase().trim())
     if (endpoint.inputType === "search")
-      return `${endpoint.path}?q=${encodeURIComponent(query || "NVDA")}`
+      return `${endpoint.path}?q=${encodeURIComponent(query)}`
     return endpoint.path
   })()
 
@@ -101,7 +101,7 @@ function ApiSandbox({ onRefresh }: { onRefresh: () => void }) {
             onChange={e => setTicker(e.target.value)}
             placeholder="NVDA"
             maxLength={5}
-            className="text-sm border border-gray-200 rounded px-2.5 py-1.5 w-20
+            className="text-sm text-gray-900 bg-white border border-gray-200 rounded px-2.5 py-1.5 w-20
                        font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         )}
@@ -111,14 +111,18 @@ function ApiSandbox({ onRefresh }: { onRefresh: () => void }) {
             onChange={e => setQuery(e.target.value)}
             placeholder="Pelosi"
             maxLength={40}
-            className="text-sm border border-gray-200 rounded px-2.5 py-1.5 w-32
+            className="text-sm text-gray-900 bg-white border border-gray-200 rounded px-2.5 py-1.5 w-32
                        focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         )}
 
         <button
           onClick={send}
-          disabled={loading}
+          disabled={
+            loading ||
+            (endpoint.inputType === "ticker" && !ticker.trim()) ||
+            (endpoint.inputType === "search" && !query.trim())
+          }
           className="text-sm px-4 py-1.5 bg-blue-600 text-white rounded font-medium
                      hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
         >
@@ -301,13 +305,13 @@ export default function UsagePage() {
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
           <div className="text-3xl font-bold text-gray-900">
-            {latency ? `${latency.p50}ms` : "—"}
+            {latency ? `${Math.round(latency.p50)}ms` : "—"}
           </div>
           <div className="text-sm text-gray-500 mt-1">Median latency (P50)</div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
           <div className="text-3xl font-bold text-gray-900">
-            {latency ? `${latency.p95}ms` : "—"}
+            {latency ? `${Math.round(latency.p95)}ms` : "—"}
           </div>
           <div className="text-sm text-gray-500 mt-1">95th percentile (P95)</div>
         </div>

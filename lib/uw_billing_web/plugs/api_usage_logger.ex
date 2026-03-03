@@ -31,7 +31,7 @@ defmodule UwBillingWeb.Plugs.ApiUsageLogger do
         error = conn.status >= 500
 
         event = %{
-          user_id: user_id,
+          user_id: to_user_int(user_id),
           plan_tier: plan_tier,
           method: conn.method,
           path: path,
@@ -66,4 +66,11 @@ defmodule UwBillingWeb.Plugs.ApiUsageLogger do
       true -> seg
     end
   end
+
+  defp to_user_int(id) when is_binary(id) do
+    <<_::64, low::unsigned-64>> = Base.decode16!(String.replace(id, "-", ""), case: :mixed)
+    low
+  end
+
+  defp to_user_int(id) when is_integer(id), do: id
 end

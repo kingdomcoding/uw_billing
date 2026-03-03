@@ -3,7 +3,7 @@ defmodule UwBilling.Usage.SeedDemo do
 
   @endpoints [
     "/api/congress/recent",
-    "/api/congress/:ticker",
+    "/api/congress/ticker/:ticker",
     "/api/congress/summary",
     "/api/congress/search"
   ]
@@ -58,24 +58,11 @@ defmodule UwBilling.Usage.SeedDemo do
         end
       end)
 
-    query = """
-    INSERT INTO uw_billing.api_requests
-    (user_id, plan_tier, method, path, status_code, duration_ms, error, timestamp)
-    VALUES
-    """
+    query = "INSERT INTO uw_billing.api_requests FORMAT RowBinaryWithNamesAndTypes"
+    names = ["user_id", "plan_tier", "method", "path", "status_code", "duration_ms", "error", "timestamp"]
+    types = ["UInt64", "LowCardinality(String)", "LowCardinality(String)", "LowCardinality(String)", "UInt16", "Float32", "UInt8", "DateTime"]
 
-    case Ch.query(UwBilling.CH, query, rows,
-           types: [
-             "UInt64",
-             "LowCardinality(String)",
-             "LowCardinality(String)",
-             "LowCardinality(String)",
-             "UInt16",
-             "Float32",
-             "UInt8",
-             "DateTime"
-           ]
-         ) do
+    case Ch.query(UwBilling.CH, query, rows, names: names, types: types) do
       {:ok, _} ->
         Logger.info("SeedDemo: inserted #{length(rows)} rows for user_int #{user_int}")
 
@@ -87,7 +74,7 @@ defmodule UwBilling.Usage.SeedDemo do
   defp to_user_int(id) when is_integer(id), do: id
 
   defp to_user_int(id) when is_binary(id) do
-    <<int::unsigned-128>> = Base.decode16!(String.replace(id, "-", ""), case: :mixed)
-    int
+    <<_::64, low::unsigned-64>> = Base.decode16!(String.replace(id, "-", ""), case: :mixed)
+    low
   end
 end

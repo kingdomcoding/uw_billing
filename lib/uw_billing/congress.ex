@@ -11,17 +11,16 @@ defmodule UwBilling.Congress do
   end
 
   def recent_summary do
-    case UwBilling.Congress.CongressTrade
-         |> Ash.Query.new()
-         |> Ash.Query.sort(inserted_at: :desc)
-         |> Ash.Query.limit(200)
-         |> Ash.read(domain: __MODULE__) do
+    case UwBilling.Congress.recent_trades(200) do
       {:ok, trades} ->
         summary =
           trades
           |> Enum.group_by(& &1.ticker)
-          |> Enum.map(fn {ticker, t} -> %{ticker: ticker, count: length(t)} end)
-          |> Enum.sort_by(& &1.count, :desc)
+          |> Enum.map(fn {ticker, t} ->
+            latest = t |> Enum.map(& &1.filed_at) |> Enum.max(Date)
+            %{ticker: ticker, trades: length(t), latest_filed: Date.to_iso8601(latest)}
+          end)
+          |> Enum.sort_by(& &1.trades, :desc)
           |> Enum.take(20)
 
         {:ok, summary}
