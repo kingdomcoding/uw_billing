@@ -1,124 +1,171 @@
 # uw_billing
 
-A production-patterned Elixir/Phoenix billing + API usage tracking system,
-built to demonstrate the architecture I'd bring to the Unusual Whales backend role.
+Hi Dario — this is my take on what a billing and API metering system would look like
+built on UW's stack: Ash, Oban, ClickHouse, Stripe, and React. It's meant to be
+production-patterned, not a toy — every architectural choice here has a concrete reason
+behind it that I'm happy to dig into.
+
+The premise: UW's API is a monetized product. That means subscriptions, rate limiting,
+metered usage tracking, and congressional trade data as a first-class domain. This
+implements all three modules in one Phoenix app.
+
+---
 
 ## What this implements
 
 **Module 1 — Stripe billing engine**
-Full subscription lifecycle (`free → trialing → active → past_due → paused → canceled`)
-via AshStateMachine. Idempotent Oban webhook processing. Upgrade/downgrade with
-scheduled plan change at period end. Daily sync + dunning reaper via AshOban triggers.
-Invoice history via Stripe invoice events.
 
-**Module 2 — API usage tracking**
-In-process BufferServer flushes batches to ClickHouse. ApiUsageLogger Plug captures
-every request with zero blocking. Materialized View pre-aggregates daily rollup.
+Full subscription lifecycle via AshStateMachine:
 
-**Module 3 — Congressional Trade Watcher**
-Oban-scheduled worker polling STOCK Act disclosures via the UW API (or EDGAR EFTS
-as a fallback). Upserts to Postgres via the Congress domain. ~80 lines total.
-Shows genuine domain awareness: UW's core identity is congressional trading transparency.
-
-## React SPA — seven pages
-
-| URL | What you see |
-|-----|--------------|
-| `/setup` | **First-time entry point.** Step-by-step Stripe setup guide + live credential verification. Green/amber dot in the nav shows configuration status. |
-| `/dashboard` | Daily request chart, endpoint breakdown, quota progress, P50/P95 latency |
-| `/billing` | Subscription status badge, period dates, pause/resume/cancel actions |
-| `/billing/plans` | Three-column plan grid (Free / Pro / Premium) with instant plan switching |
-| `/billing/invoices` | Full invoice history with amount, status, and payment date |
-| `/account` | Email and copyable API key |
-| `/trades` | Congressional stock disclosures table + active ticker heatmap |
-
-Set your API key once in the nav bar input — it persists via `localStorage` for the session.
-
-## Architecture decisions
-
-### Why Ash Framework
-
-Ash provides a unified layer for resources (schema + validation), domains (public API),
-actions (CRUD + custom), AshStateMachine (declarative transitions), AshOban (per-record
-cron triggers), and AshJsonApi (JSON:API endpoint generation). The result: no separate
-Ecto schemas, changeset modules, or context functions. The domain is the public API;
-resources are implementation details. AshStateMachine raises `Ash.Error.Invalid` on
-invalid transitions rather than relying on every caller to check a guard function.
-
-### Why Oban for webhook processing, not inline
-
-Stripe retries on non-2xx responses. Without durable idempotent processing, an upgrade
-event delivered twice would double-charge or corrupt subscription state. The controller
-returns 200 immediately. Oban's `unique` constraint (keyed on Stripe event ID,
-`period: :infinity`) ensures exactly-once execution. A secondary `stripe_events`
-uniqueness check catches the edge case where a worker crashes post-processing.
-
-### Why Ash domains as the public API, not resource modules
-
-Callers should not know which resource a function delegates to. `Billing.cancel_subscription(sub)`
-is stable across refactors; `Subscription.cancel!(sub)` leaks the resource name.
-`define` in the domain block auto-generates both `f/n` and `f!/n` variants — no boilerplate.
-
-### Why ClickHouse for usage data
-
-At UW's scale, `api_requests` accumulates billions of rows. Columnar MergeTree with
-monthly partitioning and a Materialized View rollup makes per-user analytical queries
-run in milliseconds. PostgreSQL at the same scale requires sequential scans or
-oversized indexes that degrade with time.
-
-### Why BufferServer flushes directly on shutdown (not DETS)
-
-DETS is node-local — it does not survive a container replacement or rollout. Instead,
-the supervision tree is arranged so the ClickHouse pool (child #2) outlives the
-BufferServer (child #5) on shutdown. `Process.flag(:trap_exit, true)` ensures
-`terminate/2` is called on SIGTERM, and a 30-second `child_spec` shutdown timeout
-gives the flush enough time to complete.
-
-## Running locally
-
-```bash
-docker compose up -d
-mix deps.get
-cd assets && npm install && cd ..
-mix setup              # creates DB, runs migrations, seeds plans + demo user, builds assets
-mix phx.server         # http://localhost:4000
+```
+free → trialing → active ⇄ past_due → canceled
+                  active → paused → active
 ```
 
-`mix setup` prints the seeded demo user's API key. Copy it.
+Idempotent Oban webhook processing. Upgrade/downgrade with scheduled plan change at
+period end. Daily sync + dunning reaper via AshOban triggers. Invoice history via
+Stripe invoice events.
 
-Open [http://localhost:4000](http://localhost:4000) — you'll land on `/setup`.
+The state machine isn't just aesthetics — `Billing.cancel_subscription(sub)` on an
+already-canceled subscription returns `{:error, %Ash.Error.Invalid{}}` from the
+framework, not from a guard I might forget to write.
 
-1. Paste the API key into the nav bar input.
-2. Follow the on-page instructions to create a Stripe test account and get your credentials.
-3. Start the webhook forwarder: `stripe listen --forward-to localhost:4000/webhooks/stripe`
-4. Enter all four credentials in the form and click **Verify & Save**.
-5. On success you're redirected to `/dashboard` — all billing features are now live.
+**Module 2 — API usage tracking**
+
+In-process `BufferServer` (GenServer) flushes batches to ClickHouse every 1 second
+or every 500 rows, whichever comes first. `ApiUsageLogger` plug captures every
+request with zero blocking — it uses `register_before_send` so the push fires after
+the response is formed but before bytes hit the socket.
+
+`SummingMergeTree` + Materialized View pre-aggregates the daily rollup so quota
+checks query hundreds of rows, not billions. The rate-limit plug does one ClickHouse
+read per metered request — correctness over cache approximation for the demo.
+
+**Module 3 — Congressional Trade Watcher**
+
+Oban-scheduled worker polling STOCK Act disclosures via the UW API, with EDGAR EFTS
+as an always-available fallback. Upserts to Postgres with a field-enrichment strategy:
+UW records overwrite EDGAR names (UW returns clean formatted names; EDGAR returns
+whatever `display_names` contains). A Postgres trigger prevents NULL regression when
+an EDGAR upsert would overwrite fields that UW previously enriched.
+
+This one is deliberate domain signaling. Congressional trading transparency is UW's
+identity — including it as a first-class domain shows I understand what UW actually is.
+
+---
+
+## The SPA — four pages
+
+| URL | What it shows |
+|-----|---------------|
+| `/settings` | Stripe credential setup (secret key, publishable key, price IDs) and UW API key configuration. Live verification against both APIs. Green/amber dot in the nav reflects Stripe config state. |
+| `/usage` | Daily request chart, endpoint breakdown, quota ring, P50/P95 latency — all from ClickHouse. |
+| `/billing` | Subscription status, billing period, plan grid (Free / Pro / Premium), invoice history, and pause/resume/cancel actions. |
+| `/trades` | Congressional stock disclosures table + ticker heatmap. House/Senate chamber badges. Issuer labels for spouse/joint trades. |
+
+The Trades and Usage pages work immediately with seeded data — no Stripe account needed
+to see them.
+
+---
+
+## Running it
+
+```bash
+# Start Postgres and ClickHouse
+docker compose up -d
+
+# Install dependencies
+mix deps.get && cd assets && npm install && cd ..
+
+# First-time setup: create DB, run migrations, seed plans + demo user, seed ClickHouse
+mix setup
+
+# Or for a full wipe + re-seed on subsequent runs
+bin/reset
+
+# Start the server
+mix phx.server
+```
+
+`mix setup` prints the seeded demo user's API key — copy it.
+
+Open [http://localhost:4000](http://localhost:4000). You land on `/trades`.
+
+To enable Stripe billing:
+1. Create a Stripe test account and get your secret key, publishable key, and price IDs
+   (the Settings page walks through this step by step).
+2. Start the webhook forwarder: `stripe listen --forward-to localhost:4000/webhooks/stripe`
+3. Enter credentials on `/settings` and click **Verify & Save**.
 
 **Test a billing event end-to-end:**
+
 ```bash
 stripe trigger customer.subscription.created
 ```
 
-The webhook arrives at `/webhooks/stripe`, is enqueued by Oban, processed by
-`StripeWebhookWorker`, and the subscription row appears in Postgres. Check `/billing`
-in the SPA to see the subscription status update.
+The webhook hits `/webhooks/stripe`, gets enqueued by Oban, processed by
+`StripeWebhookWorker`, and the subscription appears in Postgres. Check `/billing` to
+see the status update.
 
-## Running tests
+---
+
+## Architecture: the key decisions
+
+**Ash domains as the stable public API.** The standard Elixir stack has four layers per domain: schemas, changesets, contexts, queries. Ash collapses them into one resource file, with the domain block as the public API. `define :cancel_subscription, action: :cancel` generates both `f/n` and `f!/n` variants. Callers use `Billing.cancel_subscription(sub)`, never `Ash.update`. Validation is enforced at the action boundary via `accept [...]`, not a `cast/3` a developer might forget.
+
+**AshOban colocates background jobs with resources.** The dunning and sync triggers live in the `Subscription` resource block — `where expr(status == :past_due and past_due_since <= ago(7, :day))`. AshOban generates the scheduler and worker modules at compile time. The invariants for when a subscription gets reaped live next to the state machine that governs transitions, not in a separate workers directory.
+
+**Stripe webhook idempotency at three layers.** The controller returns 200 immediately and enqueues an Oban job — Stripe stops retrying. Oban's `unique: [keys: [:stripe_event_id], period: :infinity]` discards duplicate deliveries before they run. `StripeEvent` has a DB-level unique identity on `stripe_event_id` as a final backstop. Event ordering issues (e.g. `invoice.finalized` arriving before `subscription.created` is processed) are handled with `{:snooze, 30}` rather than hard errors.
+
+**BufferServer + supervision tree ordering for zero-loss shutdown.** `BufferServer.push/1` is a `GenServer.cast` — fire-and-forget, never blocks the caller. On SIGTERM the supervision tree shuts down in reverse start order: Endpoint stops first, then Oban drains, then `BufferServer.terminate/2` flushes remaining events. The ClickHouse pool starts at position 3 and shuts down later, so it's still alive when the flush runs. No DETS, no external queue.
+
+**Congress trade enrichment is protected at the DB level.** The upsert identity is semantic — `(trader_name, ticker, traded_at, transaction_type)` — because UW and EDGAR don't share a record ID. A Postgres `BEFORE UPDATE` trigger prevents EDGAR upserts from NULLing out fields that UW previously populated (`amount_range`, `politician_id`, `issuer`, `member_type`). Once set from UW, they're never regressed.
+
+**The rate-limit plug makes an explicit tradeoff.** `EnforceRateLimit` does a synchronous ClickHouse query per metered request for non-premium users — exact counts, no stale cache. A production implementation would cache the monthly count in ETS with a TTL. `ApiUsageLogger` uses `register_before_send` so the duration includes the full request lifecycle but the ClickHouse push never delays the response. Internal paths are excluded so quota management never counts against your own quota.
+
+---
+
+## Production concerns already addressed
+
+- **Webhook deduplication** — three layers as described above
+- **Zero-downtime credential rotation** — Stripe and UW API keys resolve from the DB at call time, not cached at startup; updating via Settings takes effect immediately
+- **Graceful shutdown** — 30-second BufferServer shutdown timeout; supervision tree ordering guarantees the ClickHouse pool outlives the flusher
+- **Enrichment protection** — Postgres trigger prevents NULL regression on Congress trade fields; fires on every UPDATE, including migrations
+- **Release-ready container** — multi-stage Alpine build; ~60MB runtime image; `config/runtime.exs` reads env vars at boot, not compile time
+- **Metered path exclusions** — `/api/billing`, `/api/usage`, `/webhooks` are excluded from rate limiting; users can always reach account management at zero quota
+- **Type-safe frontend contract** — `strict: true` TypeScript with union types for all enums; compiler catches backend contract changes before runtime
+
+---
+
+## What I'd build next
+
+1. **Ash authorization policies** — `Ash.Policy.Authorizer` on `Subscription`, `Invoice`, and `StripeEvent`; `relates_to_actor_via(:user)` enforces row-level tenancy at the framework level with no migration
+2. **Metered billing** — `:usage_metered` Plan tier; nightly `SyncUsageRecordsWorker` queries ClickHouse `daily_counts` and calls `Stripe.UsageRecord.create/3`; idempotent via `"#{user_id}-#{date}"` key
+3. **Smart dunning** — `DunningPolicy` singleton resource with configurable `retry_days`; reaper calls `Stripe.Invoice.pay/2` on retry days and `cancel_subscription` at the terminal threshold
+4. **Proration preview** — `GET /api/billing/plans/:id/preview` calls `Stripe.Invoice.upcoming/1` before the user commits to a plan change
+5. **Webhook event replay** — admin endpoint listing `stripe_events` where `processed_at IS NULL`; replay via `Oban.insert!` with the original args
+6. **Live trade push** — PubSub broadcast from `CongressTradePoller` on each batch; Phoenix Channel or SSE replaces the 30-second frontend poll
+7. **ClickHouse trade archive** — mirror `congress_trades` to a `MergeTree` table for historical scale; replace in-memory `recent_summary/0` grouping with a `CongressClickHouse` query module
+
+---
+
+## Tests
 
 ```bash
 mix test
 ```
 
-Covers: subscription state machine transitions (16 cases), StripeWebhookWorker
-idempotency and full lifecycle (8 cases).
+**24 cases total:**
+- 16 subscription state machine transition cases — covers every valid and invalid transition
+  including `canceled` as a terminal state
+- 8 `StripeWebhookWorker` cases — idempotency, snooze behavior, full subscription lifecycle
+  (`created → updated → deleted`), payment failure and recovery
 
-## What I'd build next
+ClickHouse interactions and `CongressTradePoller` (network dependency) are not covered by
+the test suite — those would require a test ClickHouse instance and VCR-style HTTP
+fixtures, which felt out of scope for a demo.
 
-1. **Metered billing** — Stripe Usage Records for API-tier plans billed per request.
-2. **Smart dunning** — configurable retry cadence (day 1, 3, 7, 14) before cancel.
-3. **Usage-based upgrade prompts** — AshOban trigger querying ClickHouse for users
-   approaching their monthly limit, firing an Ash notification action.
-4. **Webhook event replay** — LiveView admin page listing failed `stripe_events`
-   with an `Oban.insert!` replay button for incident recovery.
-5. **Ash authorization policies** — `Ash.Policy.Authorizer` ensuring users can
-   only read their own subscriptions and usage data, enforced at the resource level.
+---
+
+Happy to walk through any part of this live. The whole backend is under 3k lines —
+small enough to cover end-to-end in one session.
