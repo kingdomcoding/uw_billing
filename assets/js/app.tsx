@@ -6,7 +6,6 @@ import Layout from "./components/Layout"
 import SetupPage from "./pages/SetupPage"
 import UsagePage from "./pages/UsagePage"
 import BillingPage from "./pages/BillingPage"
-import AccountPage from "./pages/AccountPage"
 import TradesPage from "./pages/TradesPage"
 
 function RootRedirect() {
@@ -34,7 +33,6 @@ createRoot(container).render(
         <Route path="setup"            element={<SetupPage />} />
         <Route path="dashboard"        element={<UsagePage />} />
         <Route path="billing"          element={<BillingPage />} />
-        <Route path="account"          element={<AccountPage />} />
         <Route path="trades"           element={<TradesPage />} />
       </Route>
     </Routes>

@@ -7,7 +7,6 @@ const ALL_NAV = [
   { to: "/dashboard", label: "Usage" },
   { to: "/billing",   label: "Billing" },
   { to: "/trades",    label: "Congress" },
-  { to: "/account",   label: "Account" },
 ]
 
 export default function Layout() {
