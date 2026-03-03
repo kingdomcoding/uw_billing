@@ -150,6 +150,7 @@ defmodule UwBillingWeb.SettingsController do
                                 },
                                 api_key: secret_key
                               ) do
+      %{} |> UwBilling.Workers.CongressTradePoller.new() |> Oban.insert()
       json(conn, %{ok: true})
     else
       false ->
