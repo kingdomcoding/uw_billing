@@ -35,3 +35,6 @@ uw_billing-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Local env vars — never commit secrets
+.env
+

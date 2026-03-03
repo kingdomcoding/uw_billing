@@ -1,22 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom"
+import { NavLink, Outlet } from "react-router-dom"
 import { api, StripeConfigStatus } from "../api"
 
 const ALL_NAV = [
-  { to: "/setup",     label: "Setup" },
-  { to: "/dashboard", label: "Usage" },
-  { to: "/billing",   label: "Billing" },
-  { to: "/trades",    label: "Congress" },
+  { to: "/trades",  label: "Trades" },
+  { to: "/usage",   label: "API Usage" },
+  { to: "/billing", label: "Billing" },
+  { to: "/setup",   label: "Stripe Setup" },
 ]
 
 export default function Layout() {
-  const [apiKey, setApiKey]             = useState(localStorage.getItem("uw_api_key") ?? "")
   const [email, setEmail]               = useState<string | null>(null)
   const [stripeStatus, setStripeStatus] = useState<StripeConfigStatus | null>(null)
-  const [hasSub, setHasSub]             = useState<boolean | null>(null)
   const [ready, setReady]               = useState(false)
-  const navigate = useNavigate()
-  const location = useLocation()
 
   useEffect(() => {
     const stored = localStorage.getItem("uw_api_key") ?? ""
@@ -24,7 +20,6 @@ export default function Layout() {
       api.demoSession()
         .then(({ api_key, email: e }) => {
           localStorage.setItem("uw_api_key", api_key)
-          setApiKey(api_key)
           setEmail(e)
         })
         .catch(() => {})
@@ -35,7 +30,6 @@ export default function Layout() {
         .then(info => { setEmail(info.email); setReady(true) })
         .catch(() => {
           localStorage.removeItem("uw_api_key")
-          setApiKey("")
           refreshFromDemo()
         })
     } else {
@@ -53,54 +47,55 @@ export default function Layout() {
     refreshStripe()
   }, [refreshStripe])
 
-  const refreshSub = useCallback(() => {
-    if (!apiKey) { setHasSub(false); return }
-    api.subscription()
-      .then(sub => setHasSub(!!sub))
-      .catch(() => setHasSub(false))
-  }, [apiKey])
-
-  useEffect(() => {
-    refreshSub()
-  }, [refreshSub])
-
-  useEffect(() => {
-    if (stripeStatus === null || hasSub === null) return
-    if (location.pathname === "/setup") return
-    if (!stripeStatus.configured || !hasSub) {
-      navigate("/setup", { replace: true })
-    }
-  }, [stripeStatus, hasSub, location.pathname, navigate])
-
-  const stripeOk = stripeStatus?.configured === true && hasSub === true
-  const navLinks = stripeOk ? ALL_NAV : ALL_NAV.slice(0, 1)
-  const fullyReady = ready && hasSub !== null
+  const stripeOk = stripeStatus?.custom_configured === true
+  const initials = email ? email.split("@")[0].slice(0, 2).toUpperCase() : ""
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-6">
-        <span className="text-sm font-bold text-gray-900 mr-4">uw_billing</span>
-        {navLinks.map(({ to, label }) => {
-          const isSetup = to === "/setup"
-          return (
-            <NavLink
-              key={to} to={to}
-              className={({ isActive }) =>
-                `text-sm font-medium flex items-center gap-1 ${isActive ? "text-blue-600" : "text-gray-500 hover:text-gray-900"}`}
-            >
-              {label}
-              {isSetup && stripeStatus !== null && (
-                <span className={`w-2 h-2 rounded-full ${stripeOk ? "bg-green-500" : "bg-amber-500"}`} />
-              )}
-            </NavLink>
-          )
-        })}
-        {email && <div className="ml-auto text-xs text-gray-500 font-mono">{email}</div>}
+      <nav className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-6 flex items-stretch gap-6 h-12">
+
+          <span className="flex items-center mr-2 text-base font-bold text-gray-900 tracking-tight shrink-0">
+            Unusual Whales
+          </span>
+
+          {ALL_NAV.map(({ to, label }) => {
+            const isStripeSetup = to === "/setup"
+            return (
+              <NavLink
+                key={to} to={to}
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 text-sm font-medium border-b-2 -mb-px px-1 ` +
+                  (isActive
+                    ? "text-blue-600 border-blue-600"
+                    : "text-gray-500 border-transparent hover:text-gray-900")}
+              >
+                {label}
+                {isStripeSetup && stripeStatus !== null && (
+                  <span
+                    title={stripeOk ? "Using your Stripe credentials" : "Using app default credentials"}
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${stripeOk ? "bg-green-500" : "bg-amber-400"}`}
+                  />
+                )}
+              </NavLink>
+            )
+          })}
+
+          {email && (
+            <div className="ml-auto flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                {initials}
+              </div>
+              <span className="text-sm text-gray-700">{email}</span>
+            </div>
+          )}
+
+        </div>
       </nav>
 
       <main className="max-w-5xl mx-auto p-6">
-        {fullyReady
-          ? <Outlet context={{ refreshStripe, refreshSub }} />
+        {ready
+          ? <Outlet context={{ refreshStripe, refreshSub: () => {} }} />
           : <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading…</div>
         }
       </main>
