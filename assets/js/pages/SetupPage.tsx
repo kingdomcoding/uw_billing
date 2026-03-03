@@ -20,8 +20,6 @@ export default function SetupPage() {
   const [elapsed, setElapsed]         = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const [hasSub, setHasSub]           = useState<boolean | null>(null)
-
   const [uwStatus, setUwStatus]       = useState<UwConfigStatus | null>(null)
   const [uwKey, setUwKey]             = useState("")
   const [savingUw, setSavingUw]       = useState(false)
@@ -33,7 +31,6 @@ export default function SetupPage() {
   useEffect(() => {
     load()
     loadUw()
-    api.subscription().then(sub => setHasSub(!!sub)).catch(() => setHasSub(false))
   }, [])
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -230,22 +227,6 @@ export default function SetupPage() {
               The app is running with my default Stripe credentials.
               Enter your own below to use your Stripe account instead.
             </p>
-          </div>
-        )}
-
-        {(envConfigured || customConfigured) && hasSub === false && prov === "idle" && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between gap-4 mb-4">
-            <div>
-              <p className="text-sm font-semibold text-green-900">Stripe is configured — ready to set up your demo</p>
-              <p className="text-xs text-green-700 mt-0.5">
-                Creates a Pro subscription in Stripe and seeds demo invoices.
-              </p>
-            </div>
-            <button
-              type="button" onClick={runProvision}
-              className="px-4 py-2 bg-green-700 text-white text-sm rounded hover:bg-green-800 whitespace-nowrap shrink-0">
-              Set up demo →
-            </button>
           </div>
         )}
 

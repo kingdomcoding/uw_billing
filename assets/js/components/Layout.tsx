@@ -47,6 +47,13 @@ export default function Layout() {
     refreshStripe()
   }, [refreshStripe])
 
+  useEffect(() => {
+    if (!ready || !stripeStatus?.configured) return
+    api.subscription()
+      .then(sub => { if (!sub) api.demoSubscribe().catch(() => {}) })
+      .catch(() => {})
+  }, [ready, stripeStatus])
+
   const stripeOk = stripeStatus?.custom_configured === true
   const initials = email ? email.split("@")[0].slice(0, 2).toUpperCase() : ""
 
