@@ -34,7 +34,10 @@ config :uw_billing, Oban,
     {Oban.Plugins.Pruner, max_age: 604_800},
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 */6 * * *", UwBilling.Workers.CongressTradePoller}
+       {"0 */6 * * *", UwBilling.Workers.CongressTradePoller},
+       {"0 * * * *",   UwBilling.Workers.Schedulers.ReapPastDueScheduler},
+       {"0 2 * * *",   UwBilling.Workers.Schedulers.SyncFromStripeScheduler},
+       {"0 * * * *",   UwBilling.Workers.Schedulers.ApplyScheduledPlanScheduler}
      ]}
   ],
   repo: UwBilling.Repo

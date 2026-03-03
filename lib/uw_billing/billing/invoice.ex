@@ -56,11 +56,13 @@ defmodule UwBilling.Billing.Invoice do
     end
 
     update :mark_paid do
+      require_atomic? false
       change set_attribute(:status, :paid)
       change set_attribute(:paid_at, &DateTime.utc_now/0)
     end
 
     update :void do
+      require_atomic? false
       change set_attribute(:status, :void)
     end
 

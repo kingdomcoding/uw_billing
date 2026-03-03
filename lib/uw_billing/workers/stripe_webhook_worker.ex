@@ -28,8 +28,11 @@ defmodule UwBilling.Workers.StripeWebhookWorker do
         dispatch(event_type, payload)
 
       {:error, %Ash.Error.Invalid{errors: [%{field: :stripe_event_id} | _]}} ->
-        Logger.info("Skipping already-processed Stripe event")
-        :ok
+        # Event already recorded — this is a snooze retry, not a duplicate delivery
+        # (Oban's unique constraint prevents duplicate jobs from being enqueued).
+        # Still run dispatch so the snoozed work actually completes.
+        Logger.info("Re-dispatching snoozed Stripe event attempt=#{attempt}")
+        dispatch(event_type, payload)
 
       {:error, reason} ->
         {:error, inspect(reason)}
