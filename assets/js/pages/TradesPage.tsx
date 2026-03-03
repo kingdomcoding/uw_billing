@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { api, CongressTrade, CongressSummary, MonthlySummary } from "../api"
+import { api, ApiError, CongressTrade, CongressSummary, MonthlySummary } from "../api"
 import StatusBadge from "../components/StatusBadge"
+import ErrorBanner from "../components/ErrorBanner"
 
 type TxFilter = "all" | "purchase" | "sale" | "exchange"
 
@@ -21,7 +22,7 @@ export default function TradesPage() {
   const [filterTicker, setFilterTicker] = useState("")
   const [isFiltered, setIsFiltered]     = useState(false)
   const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  const [error, setError]               = useState<ApiError | Error | null>(null)
   const [polling, setPolling]           = useState(false)
   const [page, setPage]                 = useState(1)
   const [txFilter, setTxFilter]         = useState<TxFilter>("all")
@@ -45,7 +46,7 @@ export default function TradesPage() {
         setLoading(false)
         refreshUsage()
       })
-      .catch((err: Error) => { setLoading(false); setError(err.message) })
+      .catch((err: unknown) => { setLoading(false); setError(err instanceof Error ? err : new Error(String(err))) })
   }
 
   useEffect(() => { loadAll() }, [])
@@ -71,7 +72,7 @@ export default function TradesPage() {
         setLoading(false)
         refreshUsage()
       })
-      .catch((err: Error) => { setLoading(false); setError(err.message) })
+      .catch((err: unknown) => { setLoading(false); setError(err instanceof Error ? err : new Error(String(err))) })
   }
 
   const triggerPoll = () => {
@@ -83,7 +84,7 @@ export default function TradesPage() {
           setPolling(false)
         }, 3_000)
       })
-      .catch(() => setPolling(false))
+      .catch((err: unknown) => { setPolling(false); setError(err instanceof Error ? err : new Error("Refresh failed")) })
   }
 
   const fmt = (s: string | null) =>
@@ -139,13 +140,9 @@ export default function TradesPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner error={error} onRetry={() => { setError(null); loadAll(page) }} />}
 
-      {usageSummary?.near_limit && !usageSummary.plan_unlimited && (
+      {usageSummary?.near_limit && !usageSummary.plan_unlimited && (usageSummary.usage_pct ?? 0) < 100 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between text-sm">
           <span className="text-amber-800">
             You're at {usageSummary.usage_pct}% of your monthly request limit.
@@ -190,7 +187,7 @@ export default function TradesPage() {
                       setLoading(false)
                       refreshUsage()
                     })
-                    .catch((err: Error) => { setLoading(false); setError(err.message) })
+                    .catch((err: unknown) => { setLoading(false); setError(err instanceof Error ? err : new Error(String(err))) })
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs hover:bg-blue-50 hover:border-blue-300">
                 <span className="font-mono font-semibold text-gray-900">{s.ticker}</span>

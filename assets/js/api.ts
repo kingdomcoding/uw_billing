@@ -1,5 +1,15 @@
 const BASE = "/api"
 
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly body: Record<string, unknown> | null
+  ) {
+    super((body?.error as string) ?? `API error: ${status}`)
+    this.name = "ApiError"
+  }
+}
+
 // ── Usage types ─────────────────────────────────────────────────────────────
 export interface DailyCount    { date: string; total: number; errors: number }
 export interface EndpointCount { endpoint: string; total: number }
@@ -72,8 +82,12 @@ async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Accept: "application/json", "X-Api-Key": apiKey() }
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
-  return await res.json() as T
+  if (!res.ok) {
+    let body: Record<string, unknown> | null = null
+    try { body = await res.json() } catch {}
+    throw new ApiError(res.status, body)
+  }
+  return res.json() as Promise<T>
 }
 
 async function post<T>(path: string, body?: unknown): Promise<T> {
@@ -82,8 +96,12 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
     headers: { "Content-Type": "application/json", "X-Api-Key": apiKey() },
     body: body ? JSON.stringify(body) : undefined
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
-  return await res.json() as T
+  if (!res.ok) {
+    let b: Record<string, unknown> | null = null
+    try { b = await res.json() } catch {}
+    throw new ApiError(res.status, b)
+  }
+  return res.json() as Promise<T>
 }
 
 async function del(path: string): Promise<void> {
@@ -91,13 +109,21 @@ async function del(path: string): Promise<void> {
     method: "DELETE",
     headers: { "X-Api-Key": apiKey() }
   })
-  if (!res.ok && res.status !== 204) throw new Error(`API error: ${res.status}`)
+  if (!res.ok && res.status !== 204) {
+    let body: Record<string, unknown> | null = null
+    try { body = await res.json() } catch {}
+    throw new ApiError(res.status, body)
+  }
 }
 
 async function publicGet<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { Accept: "application/json" } })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
-  return await res.json() as T
+  if (!res.ok) {
+    let body: Record<string, unknown> | null = null
+    try { body = await res.json() } catch {}
+    throw new ApiError(res.status, body)
+  }
+  return res.json() as Promise<T>
 }
 
 async function publicPost<T>(path: string, body?: unknown): Promise<T> {
@@ -106,13 +132,21 @@ async function publicPost<T>(path: string, body?: unknown): Promise<T> {
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
-  return await res.json() as T
+  if (!res.ok) {
+    let b: Record<string, unknown> | null = null
+    try { b = await res.json() } catch {}
+    throw new ApiError(res.status, b)
+  }
+  return res.json() as Promise<T>
 }
 
 async function publicDel(path: string): Promise<void> {
   const res = await fetch(`${BASE}${path}`, { method: "DELETE", headers: { Accept: "application/json" } })
-  if (!res.ok && res.status !== 204) throw new Error(`API error: ${res.status}`)
+  if (!res.ok && res.status !== 204) {
+    let body: Record<string, unknown> | null = null
+    try { body = await res.json() } catch {}
+    throw new ApiError(res.status, body)
+  }
 }
 
 export const api = {

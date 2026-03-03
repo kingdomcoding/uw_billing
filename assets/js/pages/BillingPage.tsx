@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { api, Plan, SubscriptionInfo, Invoice } from "../api"
 import StatusBadge from "../components/StatusBadge"
+import ErrorBanner from "../components/ErrorBanner"
 
 interface State {
   plans: Plan[]
@@ -77,7 +78,6 @@ export default function BillingPage() {
   if (state.loading) {
     return <div className="p-8 text-gray-500">Loading...</div>
   }
-  if (state.error) return <div className="p-8 text-red-500">Error: {state.error}</div>
 
   const { sub, invoices } = state
   const tiers = ["free", "pro", "premium"]
@@ -86,6 +86,13 @@ export default function BillingPage() {
   return (
     <div className="space-y-10">
       <h1 className="text-2xl font-semibold text-gray-900">Billing</h1>
+
+      {state.error && (
+        <ErrorBanner
+          error={state.error}
+          onRetry={() => { setState(s => ({ ...s, loading: true, error: null })); load() }}
+        />
+      )}
 
       {state.actionError && (
         <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700 flex items-center justify-between">

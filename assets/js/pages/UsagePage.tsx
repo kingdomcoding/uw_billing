@@ -161,41 +161,49 @@ interface State {
   latency: Latency | null
   account: AccountInfo | null
   loading: boolean
+  chError: string | null
   error: string | null
 }
 
 export default function UsagePage() {
   const [state, setState] = useState<State>({
     daily: [], endpoints: [], summary: null, latency: null,
-    account: null, loading: true, error: null
+    account: null, loading: true, chError: null, error: null
   })
   const [copied,  setCopied]  = useState(false)
   const [days,    setDays]    = useState<7 | 30 | 90>(30)
   const isInitialized = useRef(false)
 
   useEffect(() => {
-    Promise.all([
-      api.dailyCounts(30), api.byEndpoint(),
-      api.monthlySummary(), api.latency(30), api.account()
-    ])
-      .then(([daily, endpoints, summary, latency, account]) => {
-        setState({ daily, endpoints, summary, latency, account, loading: false, error: null })
+    api.account()
+      .then(account => {
+        setState(s => ({ ...s, account, loading: false }))
         isInitialized.current = true
       })
       .catch(err => setState(s => ({ ...s, loading: false, error: (err as Error).message })))
+
+    Promise.all([api.dailyCounts(30), api.byEndpoint(), api.monthlySummary(), api.latency(30)])
+      .then(([daily, endpoints, summary, latency]) =>
+        setState(s => ({ ...s, daily, endpoints, summary, latency, chError: null }))
+      )
+      .catch(() =>
+        setState(s => ({ ...s, chError: "Usage charts are temporarily unavailable." }))
+      )
   }, [])
 
   useEffect(() => {
     if (!isInitialized.current) return
     Promise.all([api.dailyCounts(days), api.latency(days)])
-      .then(([daily, latency]) => setState(s => ({ ...s, daily, latency })))
+      .then(([daily, latency]) => setState(s => ({ ...s, daily, latency, chError: null })))
+      .catch(() => setState(s => ({ ...s, chError: "Usage charts are temporarily unavailable." })))
   }, [days])
 
   const refresh = () => {
     Promise.all([api.dailyCounts(days), api.byEndpoint(), api.monthlySummary(), api.latency(days)])
       .then(([daily, endpoints, summary, latency]) =>
-        setState(s => ({ ...s, daily, endpoints, summary, latency }))
+        setState(s => ({ ...s, daily, endpoints, summary, latency, chError: null }))
       )
+      .catch(() => setState(s => ({ ...s, chError: "Usage charts are temporarily unavailable." })))
   }
 
   const copyKey = () => {
@@ -222,6 +230,12 @@ export default function UsagePage() {
   const top9 = state.endpoints.slice(0, 9)
   const otherTotal = state.endpoints.slice(9).reduce((s, d) => s + d.total, 0)
   const endpointData = otherTotal > 0 ? [...top9, { endpoint: "other", total: otherTotal }] : top9
+
+  const chartUnavailable = (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-10 text-center text-sm text-gray-400">
+      {state.chError}
+    </div>
+  )
 
   return (
     <div className="space-y-8">
@@ -285,12 +299,26 @@ export default function UsagePage() {
               {summary.limit && (
                 <div className="w-full bg-gray-100 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full transition-all ${summary.near_limit ? "bg-amber-500" : "bg-blue-500"}`}
+                    className={`h-2 rounded-full transition-all ${
+                      (summary.usage_pct ?? 0) >= 100 ? "bg-red-500" : summary.near_limit ? "bg-amber-500" : "bg-blue-500"
+                    }`}
                     style={{ width: `${Math.min(summary.usage_pct ?? 0, 100)}%` }}
                   />
                 </div>
               )}
-              {summary.near_limit && (
+              {(summary.usage_pct ?? 0) >= 100 ? (
+                <div className="mt-3 bg-red-50 rounded p-3 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Monthly request limit exceeded</p>
+                    <p className="text-xs text-red-700 mt-0.5">
+                      You've used all {summary.limit?.toLocaleString()} requests. API calls are rejected until the next billing cycle.
+                    </p>
+                  </div>
+                  <Link to="/billing" className="shrink-0 px-3 py-1.5 bg-red-700 text-white rounded text-sm font-medium hover:bg-red-800">
+                    Upgrade →
+                  </Link>
+                </div>
+              ) : summary.near_limit && (
                 <div className="mt-3 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded p-3">
                   <span>You're at {summary.usage_pct}% of your monthly limit.</span>
                   <Link to="/billing" className="font-medium underline">Upgrade →</Link>
@@ -339,52 +367,56 @@ export default function UsagePage() {
             ))}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={dailyFormatted} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, backgroundColor: "#fff", color: "#111827" }} />
-            <Legend wrapperStyle={{ fontSize: 12, color: "#374151" }} />
-            <Bar dataKey="total"  name="Requests" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="errors" name="Errors"   fill="#f87171" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {state.chError ? chartUnavailable : (
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={dailyFormatted} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, backgroundColor: "#fff", color: "#111827" }} />
+              <Legend wrapperStyle={{ fontSize: 12, color: "#374151" }} />
+              <Bar dataKey="total"  name="Requests" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="errors" name="Errors"   fill="#f87171" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Top endpoints — horizontal bar chart */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-base font-semibold text-gray-900 mb-4">Top endpoints this month</h2>
-        <ResponsiveContainer width="100%" height={Math.max(160, endpointData.length * 44)}>
-          <BarChart
-            data={endpointData}
-            layout="vertical"
-            margin={{ top: 0, right: 16, left: 8, bottom: 0 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
-            <XAxis
-              type="number"
-              tick={{ fontSize: 11, fill: "#9ca3af" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="endpoint"
-              width={220}
-              tick={{ fontSize: 11, fill: "#374151" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <Tooltip
-              contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, backgroundColor: "#fff", color: "#111827" }}
-              formatter={(v: number) => [v.toLocaleString(), "requests"]}
-            />
-            <Bar dataKey="total" radius={[0, 3, 3, 0]}>
-              {endpointData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        {state.chError ? chartUnavailable : (
+          <ResponsiveContainer width="100%" height={Math.max(160, endpointData.length * 44)}>
+            <BarChart
+              data={endpointData}
+              layout="vertical"
+              margin={{ top: 0, right: 16, left: 8, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="endpoint"
+                width={220}
+                tick={{ fontSize: 11, fill: "#374151" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, backgroundColor: "#fff", color: "#111827" }}
+                formatter={(v: number) => [v.toLocaleString(), "requests"]}
+              />
+              <Bar dataKey="total" radius={[0, 3, 3, 0]}>
+                {endpointData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   )
