@@ -193,6 +193,31 @@ case UwBilling.Billing.get_active_subscription(user_fresh.id) do
     Logger.warning("SetupStripe: no active subscription found, skipping invoice seeding")
 end
 
+# ── Step 6: Fetch initial congress trades ────────────────────────────────────
+
+congress_trades_exist =
+  case UwBilling.Congress.recent_trades(1) do
+    {:ok, [_ | _]} -> true
+    _              -> false
+  end
+
+if congress_trades_exist do
+  Logger.info("SetupStripe: congress trades already in DB, skipping")
+else
+  Logger.info("SetupStripe: fetching congress trades from EDGAR...")
+
+  case UwBilling.Workers.CongressTradePoller.perform(struct(Oban.Job, %{})) do
+    :ok ->
+      Logger.info("SetupStripe: congress trades loaded")
+
+    {:error, reason} ->
+      Logger.warning(
+        "SetupStripe: trade fetch failed (#{inspect(reason)}); " <>
+          "the 6-hour cron will retry automatically"
+      )
+  end
+end
+
 # ── Step 5: Live-only webhook endpoint registration ───────────────────────────
 
 phx_host = System.get_env("PHX_HOST") || "localhost"

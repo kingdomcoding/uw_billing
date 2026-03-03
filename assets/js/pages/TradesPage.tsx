@@ -21,6 +21,7 @@ export default function TradesPage() {
   const [filterTicker, setFilterTicker] = useState("")
   const [isFiltered, setIsFiltered]     = useState(false)
   const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState<string | null>(null)
   const [polling, setPolling]           = useState(false)
   const [page, setPage]                 = useState(1)
   const [txFilter, setTxFilter]         = useState<TxFilter>("all")
@@ -34,6 +35,7 @@ export default function TradesPage() {
     setIsFiltered(false)
     setTxFilter("all")
     setLoading(true)
+    setError(null)
     Promise.all([api.recentTrades(p * PAGE_SIZE), api.tradeSummary()])
       .then(([t, s]) => {
         setTrades(t)
@@ -43,7 +45,7 @@ export default function TradesPage() {
         setLoading(false)
         refreshUsage()
       })
-      .catch(() => setLoading(false))
+      .catch((err: Error) => { setLoading(false); setError(err.message) })
   }
 
   useEffect(() => { loadAll() }, [])
@@ -60,6 +62,7 @@ export default function TradesPage() {
     const q = filterTicker.trim()
     if (!q) { loadAll(); return }
     setLoading(true)
+    setError(null)
     setIsFiltered(true)
     api.searchTrades(q)
       .then(t => {
@@ -68,7 +71,7 @@ export default function TradesPage() {
         setLoading(false)
         refreshUsage()
       })
-      .catch(() => setLoading(false))
+      .catch((err: Error) => { setLoading(false); setError(err.message) })
   }
 
   const triggerPoll = () => {
@@ -136,6 +139,12 @@ export default function TradesPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {usageSummary?.near_limit && !usageSummary.plan_unlimited && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between text-sm">
           <span className="text-amber-800">
@@ -173,6 +182,7 @@ export default function TradesPage() {
                   setFilterTicker(s.ticker)
                   setIsFiltered(true)
                   setLoading(true)
+                  setError(null)
                   api.tradesByTicker(s.ticker)
                     .then(t => {
                       setTrades(t ?? [])
@@ -180,7 +190,7 @@ export default function TradesPage() {
                       setLoading(false)
                       refreshUsage()
                     })
-                    .catch(() => setLoading(false))
+                    .catch((err: Error) => { setLoading(false); setError(err.message) })
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs hover:bg-blue-50 hover:border-blue-300">
                 <span className="font-mono font-semibold text-gray-900">{s.ticker}</span>

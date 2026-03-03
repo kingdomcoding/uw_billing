@@ -112,11 +112,19 @@ defmodule UwBillingWeb.SettingsController do
   end
 
   def demo_subscribe(conn, _params) do
+    with {:ok, [user | _]} <- UwBilling.Accounts.list_users(),
+         {:ok, []}         <- UwBilling.Billing.get_active_subscription(user.id) do
+      do_demo_subscribe(conn, user)
+    else
+      {:ok, [_ | _]} -> json(conn, %{ok: true})
+      _              -> conn |> put_status(422) |> json(%{error: "Setup error"})
+    end
+  end
+
+  defp do_demo_subscribe(conn, user) do
     secret_key = UwBilling.StripeClient.secret_key()
     price_id   = UwBilling.StripeClient.price_id(:pro)
 
-    # If price IDs are missing (env-only key/webhook, no prior verify_stripe),
-    # provision products/prices now and save them to the DB config.
     price_id =
       if is_nil(price_id) or price_id == "" do
         case provision_stripe_prices(secret_key) do
@@ -137,20 +145,17 @@ defmodule UwBillingWeb.SettingsController do
         price_id
       end
 
-    # Ensure the demo customer exists in Stripe (may be missing on env-only first run)
     provision_demo_customer(secret_key)
 
-    with {:ok, [user | _]} <- UwBilling.Accounts.list_users(),
-         true              <- not is_nil(user.stripe_customer_id),
-         false             <- is_nil(price_id),
-         {:ok, _sub}       <- Stripe.Subscription.create(
-                                %{
-                                  customer: user.stripe_customer_id,
-                                  items: [%{price: price_id}]
-                                },
-                                api_key: secret_key
-                              ) do
-      %{} |> UwBilling.Workers.CongressTradePoller.new() |> Oban.insert()
+    with true        <- not is_nil(user.stripe_customer_id),
+         false       <- is_nil(price_id),
+         {:ok, _sub} <- Stripe.Subscription.create(
+                          %{
+                            customer: user.stripe_customer_id,
+                            items: [%{price: price_id}]
+                          },
+                          api_key: secret_key
+                        ) do
       json(conn, %{ok: true})
     else
       false ->
