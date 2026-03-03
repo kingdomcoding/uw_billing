@@ -10,9 +10,7 @@ defmodule UwBilling.Usage.SeedDemo do
 
   @target_monthly 82_000
 
-  # Synchronous. Called from demo_subscribe before the HTTP response is sent.
-  # Idempotent — skips if the user already has rows in ClickHouse, guarding
-  # against the webhook-timeout retry edge case.
+  # Idempotent — skips if the user already has rows in ClickHouse.
   def seed_usage(user_id) do
     user_int = to_user_int(user_id)
 

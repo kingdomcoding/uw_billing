@@ -56,6 +56,8 @@ demo_user =
       Enum.find(users, fn u -> to_string(u.email) == demo_email end)
   end
 
+UwBilling.Usage.SeedDemo.seed_usage(demo_user.id)
+
 IO.puts("""
 
 Demo user ready:

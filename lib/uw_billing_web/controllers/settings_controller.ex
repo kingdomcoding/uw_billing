@@ -150,7 +150,6 @@ defmodule UwBillingWeb.SettingsController do
                                 },
                                 api_key: secret_key
                               ) do
-      UwBilling.Usage.SeedDemo.seed_usage(user.id)
       json(conn, %{ok: true})
     else
       false ->
