@@ -9,7 +9,7 @@ stripe_secret_key =
     raise "STRIPE_SECRET_KEY is required. Copy .env.example to .env and fill in your credentials."
 
 System.get_env("STRIPE_WEBHOOK_SECRET") ||
-  raise "STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4000/webhooks/stripe"
+  raise "STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4200/webhooks/stripe"
 
 config :stripity_stripe, api_key: stripe_secret_key
 
@@ -49,7 +49,7 @@ if config_env() == :prod do
       """
 
   host = System.get_env("PHX_HOST") || "example.com"
-  port = String.to_integer(System.get_env("PORT") || "4000")
+  port = String.to_integer(System.get_env("PORT") || "4200")
 
   config :uw_billing, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

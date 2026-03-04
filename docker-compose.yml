@@ -3,12 +3,13 @@ services:
     build: .
     env_file: .env
     environment:
+      PHX_HOST: "unusual-whales-billing-demo.josboxoffice.com"
       PHX_SERVER: "true"
       DATABASE_URL: "ecto://postgres:postgres@postgres/uw_billing_dev"
       CLICKHOUSE_HOST: "clickhouse"
       SECRET_KEY_BASE: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     ports:
-      - "4000:4000"
+      - "4200:4200"
     depends_on:
       postgres:
         condition: service_healthy

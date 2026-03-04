@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 : "${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY is required. Run: cp .env.example .env, fill in your credentials, then: source .env}"
-: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4000/webhooks/stripe, then set the whsec_... in .env and: source .env}"
+: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4200/webhooks/stripe, then set the whsec_... in .env and: source .env}"
 
 echo "==> Resetting Postgres..."
 DB_URL="postgresql://postgres:postgres@localhost:5432"

@@ -31,8 +31,8 @@ COPY --from=build --chown=nobody:nobody /app/_build/prod/rel/uw_billing ./
 USER nobody
 
 ENV MIX_ENV=prod
-ENV PORT=4000
+ENV PORT=4200
 
-EXPOSE 4000
+EXPOSE 4200
 
 CMD ["bin/server"]

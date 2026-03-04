@@ -64,5 +64,5 @@ Demo user ready:
   email:   #{demo_user.email}
   api_key: #{demo_user.api_key}
 
-Auto-login will pick up the api_key when the app loads at http://localhost:4000
+Auto-login will pick up the api_key when the app loads at http://localhost:4200
 """)

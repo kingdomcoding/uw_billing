@@ -86,7 +86,7 @@ On first start, the app container runs database creation, migrations, and seedin
 before the HTTP server comes up. Subsequent starts skip setup that's already done
 (seeds are idempotent).
 
-Open [http://localhost:4000](http://localhost:4000). You land on `/trades`.
+Open [http://localhost:4200](http://localhost:4200). You land on `/trades`.
 
 ### Local mix — active development
 
@@ -104,7 +104,7 @@ without dropping the database first.
 
 ### Testing Stripe billing end-to-end
 
-1. Start the webhook forwarder: `stripe listen --forward-to localhost:4000/webhooks/stripe`
+1. Start the webhook forwarder: `stripe listen --forward-to localhost:4200/webhooks/stripe`
 2. Enter credentials on `/settings` and click **Verify & Save**.
 3. Trigger a test event:
 

@@ -3,7 +3,7 @@ services:
     build: .
     env_file: .env
     environment:
-      PORT: "4000"
+      PORT: "4200"
       PHX_SERVER: "true"
       DATABASE_URL: "ecto://postgres:${POSTGRES_PASSWORD}@postgres/uw_billing_prod"
       CLICKHOUSE_HOST: "clickhouse"

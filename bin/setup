@@ -3,7 +3,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 : "${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY is required. Fill in .env and: source .env}"
-: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4000/webhooks/stripe}"
+: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4200/webhooks/stripe}"
 
 echo "==> Running migrations..."
 mix ecto.create --quiet
