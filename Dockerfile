@@ -1,6 +1,6 @@
 FROM elixir:1.18-alpine AS build
 
-RUN apk add --no-cache build-base git
+RUN apk add --no-cache build-base git nodejs npm
 
 WORKDIR /app
 
@@ -13,12 +13,13 @@ COPY lib lib
 COPY priv priv
 COPY rel rel
 COPY assets assets
+RUN cd assets && npm install
 
 RUN MIX_ENV=prod mix assets.deploy
 RUN MIX_ENV=prod mix compile
 RUN MIX_ENV=prod mix release
 
-FROM alpine:3.21 AS app
+FROM alpine:edge AS app
 
 RUN apk add --no-cache libstdc++ openssl ncurses-libs
 

@@ -40,7 +40,7 @@ defmodule UwBilling.Workers.CongressTradePoller do
   end
 
   defp fetch_disclosures do
-    api_key = stored_uw_key() || System.get_env("UW_API_KEY")
+    api_key = stored_uw_key() || non_blank(System.get_env("UW_API_KEY"))
     case api_key do
       nil -> fetch_from_edgar()
       key -> fetch_from_uw(key)
@@ -160,6 +160,10 @@ defmodule UwBilling.Workers.CongressTradePoller do
       _        -> nil
     end
   end
+
+  defp non_blank(nil), do: nil
+  defp non_blank(""), do: nil
+  defp non_blank(s), do: s
 
   defp last_n_days(n) do
     Date.utc_today() |> Date.add(-n) |> Date.to_iso8601()

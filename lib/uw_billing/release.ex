@@ -24,7 +24,7 @@ defmodule UwBilling.Release do
   end
 
   def seed do
-    load_app()
+    start_app()
     eval_priv(["repo", "seeds.exs"])
     eval_priv(["scripts", "setup_stripe.exs"])
     :ok
@@ -38,4 +38,5 @@ defmodule UwBilling.Release do
 
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)
   defp load_app, do: Application.load(@app)
+  defp start_app, do: Application.ensure_all_started(@app)
 end
