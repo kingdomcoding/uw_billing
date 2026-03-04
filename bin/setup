@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")/.."
+
+: "${STRIPE_SECRET_KEY:?STRIPE_SECRET_KEY is required. Fill in .env and: source .env}"
+: "${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET is required. Run: stripe listen --forward-to localhost:4000/webhooks/stripe}"
+
+echo "==> Running migrations..."
+mix ecto.create --quiet
+mix ecto.migrate --quiet
+
+echo "==> Seeding..."
+mix run priv/repo/seeds.exs
+mix run priv/scripts/setup_stripe.exs
+
+echo "==> Done."

@@ -1,6 +1,6 @@
 FROM elixir:1.18-alpine AS build
 
-RUN apk add --no-cache build-base git npm nodejs
+RUN apk add --no-cache build-base git
 
 WORKDIR /app
 
@@ -11,14 +11,14 @@ RUN MIX_ENV=prod mix deps.get --only prod
 COPY config config
 COPY lib lib
 COPY priv priv
+COPY rel rel
 COPY assets assets
 
-RUN cd assets && npm install && npm run build
-RUN MIX_ENV=prod mix phx.digest
+RUN MIX_ENV=prod mix assets.deploy
 RUN MIX_ENV=prod mix compile
 RUN MIX_ENV=prod mix release
 
-FROM alpine:3.19 AS app
+FROM alpine:3.21 AS app
 
 RUN apk add --no-cache libstdc++ openssl ncurses-libs
 
@@ -34,4 +34,4 @@ ENV PORT=4000
 
 EXPOSE 4000
 
-CMD ["bin/uw_billing", "start"]
+CMD ["bin/server"]

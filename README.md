@@ -70,34 +70,43 @@ to see them.
 
 ## Running it
 
+### Docker — local demo or production
+
+Fill in `.env` (copy from `.env.example`) with your Stripe credentials, then:
+
 ```bash
-# Start Postgres and ClickHouse
-docker compose up -d
+# Local demo
+docker compose up
 
-# Install dependencies
-mix deps.get && cd assets && npm install && cd ..
-
-# First-time setup: create DB, run migrations, seed plans + demo user, seed ClickHouse
-mix setup
-
-# Or for a full wipe + re-seed on subsequent runs
-bin/reset
-
-# Start the server
-mix phx.server
+# Production (also needs SECRET_KEY_BASE, POSTGRES_PASSWORD, PHX_HOST in .env)
+docker compose -f docker-compose.prod.yml up
 ```
 
-`mix setup` prints the seeded demo user's API key — copy it.
+On first start, the app container runs database creation, migrations, and seeding
+before the HTTP server comes up. Subsequent starts skip setup that's already done
+(seeds are idempotent).
 
 Open [http://localhost:4000](http://localhost:4000). You land on `/trades`.
 
-To enable Stripe billing:
-1. Create a Stripe test account and get your secret key, publishable key, and price IDs
-   (the Settings page walks through this step by step).
-2. Start the webhook forwarder: `stripe listen --forward-to localhost:4000/webhooks/stripe`
-3. Enter credentials on `/settings` and click **Verify & Save**.
+### Local mix — active development
 
-**Test a billing event end-to-end:**
+For hot-reload and faster iteration:
+
+```bash
+docker compose up -d    # postgres + clickhouse only
+source .env
+bin/reset               # full wipe + re-seed (destructive)
+mix phx.server
+```
+
+Use `bin/setup` instead of `bin/reset` when you want to run migrations and seeds
+without dropping the database first.
+
+### Testing Stripe billing end-to-end
+
+1. Start the webhook forwarder: `stripe listen --forward-to localhost:4000/webhooks/stripe`
+2. Enter credentials on `/settings` and click **Verify & Save**.
+3. Trigger a test event:
 
 ```bash
 stripe trigger customer.subscription.created

@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+cd -P -- "$(dirname -- "$0")/.."
+
+echo "==> Creating database if needed..."
+./bin/uw_billing eval "UwBilling.Release.create_db()"
+
+echo "==> Running migrations..."
+./bin/uw_billing eval "UwBilling.Release.migrate()"
+
+echo "==> Seeding..."
+./bin/uw_billing eval "UwBilling.Release.seed()"
+
+echo "==> Starting server..."
+exec ./bin/uw_billing start

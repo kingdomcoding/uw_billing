@@ -4,8 +4,9 @@ services:
     env_file: .env
     environment:
       PORT: "4000"
+      PHX_SERVER: "true"
       DATABASE_URL: "ecto://postgres:${POSTGRES_PASSWORD}@postgres/uw_billing_prod"
-      CLICKHOUSE_URL: "http://clickhouse:8123/uw_billing"
+      CLICKHOUSE_HOST: "clickhouse"
     depends_on:
       postgres:
         condition: service_healthy

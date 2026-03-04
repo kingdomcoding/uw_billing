@@ -11,7 +11,6 @@ DB_URL="postgresql://postgres:postgres@localhost:5432"
 psql "$DB_URL/postgres" \
   -c "DROP DATABASE IF EXISTS uw_billing_dev WITH (FORCE);" \
   -c "CREATE DATABASE uw_billing_dev;"
-mix ash.setup
 
 echo "==> Resetting ClickHouse..."
 docker exec uw_billing-clickhouse-1 clickhouse-client \
@@ -21,7 +20,4 @@ docker exec uw_billing-clickhouse-1 clickhouse-client \
 docker exec -i uw_billing-clickhouse-1 clickhouse-client \
   < priv/clickhouse/init.sql
 
-mix run priv/repo/seeds.exs
-mix run priv/scripts/setup_stripe.exs
-
-echo "==> Done. Run: mix phx.server"
+bin/setup
