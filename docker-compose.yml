@@ -15,6 +15,7 @@ services:
         condition: service_healthy
       clickhouse:
         condition: service_healthy
+    restart: unless-stopped
 
   postgres:
     image: postgres:16
@@ -31,6 +32,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   clickhouse:
     image: clickhouse/clickhouse-server:24
@@ -49,6 +51,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
 volumes:
   postgres_data:
