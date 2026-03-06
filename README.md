@@ -7,7 +7,8 @@ behind it that I'm happy to dig into.
 
 The premise: UW's API is a monetized product. That means subscriptions, rate limiting,
 metered usage tracking, and congressional trade data as a first-class domain. This
-implements all three modules in one Phoenix app.
+implements all three modules in one Phoenix app. The overview page walks through
+the architecture and links to key source files, so you can explore at your own pace.
 
 ---
 
@@ -54,48 +55,51 @@ identity — including it as a first-class domain shows I understand what UW act
 
 ---
 
-## The SPA — four pages
+## The SPA — five pages
+
+On first visit, the app auto-provisions a demo user with an API key — no registration
+needed. You land on the Overview page, which suggests a walkthrough path and offers
+a one-click Quick Start to provision a Stripe test subscription.
 
 | URL | What it shows |
 |-----|---------------|
-| `/settings` | Stripe credential setup (secret key, publishable key, price IDs) and UW API key configuration. Live verification against both APIs. Green/amber dot in the nav reflects Stripe config state. |
-| `/usage` | Daily request chart, endpoint breakdown, quota ring, P50/P95 latency — all from ClickHouse. |
-| `/billing` | Subscription status, billing period, plan grid (Free / Pro / Premium), invoice history, and pause/resume/cancel actions. |
-| `/trades` | Congressional stock disclosures table + ticker heatmap. House/Senate chamber badges. Issuer labels for spouse/joint trades. |
+| `/` | Architecture overview, live system status, suggested walkthrough, feature cards with tech tags, pipeline diagrams, key code locations. Quick Start button provisions a demo subscription in one click. |
+| `/trades` | Congressional stock disclosures table + ticker heatmap. House/Senate chamber badges. Issuer labels for spouse/joint trades. Polled every 6h via Oban; Ash resources backed by Postgres. |
+| `/usage` | Daily request chart, endpoint breakdown, quota ring, P50/P95 latency — all from ClickHouse. Interactive API sandbox to fire real requests and watch the metering pipeline respond. |
+| `/billing` | Subscription status, billing period, plan grid (Free / Pro / Premium), invoice history, pause/resume/cancel. Full lifecycle: subscribe, upgrade (prorated), downgrade (end-of-period), pause, resume, cancel. |
+| `/settings` | Stripe and UW API credential management. Live verification against both APIs. Works with default credentials out of the box — use this page to connect your own Stripe test account. |
 
-The Trades and Usage pages work immediately with seeded data — no Stripe account needed
-to see them.
+Trades and Usage work immediately with seeded data — no Stripe account needed to see
+them.
 
 ---
 
 ## Running it
 
-### Docker — local demo or production
-
-Fill in `.env` (copy from `.env.example`) with your Stripe credentials, then:
+### Docker (recommended)
 
 ```bash
-# Local demo
+cp .env.example .env   # fill in Stripe credentials, everything else has defaults
 docker compose up
-
-# Production (also needs SECRET_KEY_BASE, POSTGRES_PASSWORD, PHX_HOST in .env)
-docker compose -f docker-compose.prod.yml up
 ```
 
-On first start, the app container runs database creation, migrations, and seeding
-before the HTTP server comes up. Subsequent starts skip setup that's already done
-(seeds are idempotent).
+On first start, the app runs database creation, migrations, and seeding before the
+HTTP server comes up. Subsequent starts skip setup that's already done (seeds are
+idempotent).
 
-Open [http://localhost:4200](http://localhost:4200). You land on `/trades`.
+Open [http://localhost:4200](http://localhost:4200).
+
+One compose file handles both local demo and production — `.env` controls the
+behavior. For production, set `SECRET_KEY_BASE`, `POSTGRES_PASSWORD`, and `PHX_HOST`.
 
 ### Local mix — active development
 
 For hot-reload and faster iteration:
 
 ```bash
-docker compose up -d    # postgres + clickhouse only
+docker compose up -d postgres clickhouse   # databases only
 source .env
-bin/reset               # full wipe + re-seed (destructive)
+bin/reset                                  # full wipe + re-seed (destructive)
 mix phx.server
 ```
 
@@ -176,5 +180,5 @@ fixtures, which felt out of scope for a demo.
 
 ---
 
-Happy to walk through any part of this live. The whole backend is under 3k lines —
-small enough to cover end-to-end in one session.
+Happy to walk through any part of this live. The whole app is under 6k lines of
+Elixir and TypeScript — small enough to cover end-to-end in one session.
