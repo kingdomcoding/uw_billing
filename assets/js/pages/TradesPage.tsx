@@ -102,7 +102,7 @@ export default function TradesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Congressional Trades</h1>
           <p className="mt-1 text-xs text-gray-500">
-            STOCK Act disclosures sourced from the Unusual Whales API (EDGAR EFTS fallback) · polled every 6 hours · disclosure required within 45 days of trade
+            STOCK Act disclosures from the Unusual Whales API (SEC EDGAR fallback) · polled every 6h via Oban · Ash resources backed by Postgres
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">

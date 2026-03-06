@@ -239,7 +239,12 @@ export default function UsagePage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-gray-900">API Usage</h1>
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">API Usage</h1>
+        <p className="mt-1 text-xs text-gray-500">
+          Per-request metering via a Plug pipeline &rarr; GenServer buffer &rarr; ClickHouse &middot; try the sandbox below to see the pipeline in action
+        </p>
+      </div>
 
       {/* API Access — key + sandbox */}
       <div>

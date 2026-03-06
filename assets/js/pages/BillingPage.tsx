@@ -85,7 +85,12 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Billing</h1>
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Billing</h1>
+        <p className="mt-1 text-xs text-gray-500">
+          Stripe subscription lifecycle &mdash; subscribe, upgrade (prorated), downgrade (end-of-period), pause, resume, cancel &middot; webhook-driven Ash state machine
+        </p>
+      </div>
 
       {state.error && (
         <ErrorBanner

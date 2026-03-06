@@ -187,7 +187,8 @@ export default function SetupPage() {
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Configure your Stripe and Unusual Whales credentials.
+          Credential management for Stripe and Unusual Whales APIs.
+          The app works out of the box with default credentials &mdash; use this page to connect your own Stripe test account.
         </p>
       </div>
 
