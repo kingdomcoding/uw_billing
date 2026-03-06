@@ -130,7 +130,7 @@ export default function OverviewPage() {
       </div>
 
       {status && (
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-4 text-sm text-zinc-300">
           <span className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${status.configured ? "bg-green-500" : "bg-amber-400"}`} />
             Stripe: {status.configured ? "configured" : "using defaults"}
