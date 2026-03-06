@@ -175,6 +175,7 @@ export const api = {
 
   account: () => get<AccountInfo>("/account"),
 
+  setupStatus:  ()                         => publicGet<{ configured: boolean; has_subscription: boolean }>("/setup/status"),
   demoSession:  ()                         => publicGet<{ api_key: string; email: string }>("/setup/session"),
   stripeConfig: ()                         => publicGet<StripeConfigStatus>("/setup/stripe"),
   verifyStripe: (creds: StripeCredentials) => publicPost<StripeVerifyResult>("/setup/stripe/verify", creds),
