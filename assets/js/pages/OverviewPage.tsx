@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { api } from "../api"
 
 interface OverviewStatus {
@@ -79,11 +79,25 @@ function PipelineRow({ label, steps }: { label: string; steps: PipelineStep[] })
 }
 
 export default function OverviewPage() {
+  const navigate = useNavigate()
   const [status, setStatus] = useState<OverviewStatus | null>(null)
+  const [provisioning, setProvisioning] = useState(false)
 
   useEffect(() => {
     api.setupStatus().then(setStatus).catch(() => {})
   }, [])
+
+  const quickStart = () => {
+    if (status?.has_subscription) {
+      navigate("/trades")
+      return
+    }
+    setProvisioning(true)
+    api.demoSubscribe()
+      .then(() => navigate("/trades"))
+      .catch(() => navigate("/trades"))
+      .finally(() => setProvisioning(false))
+  }
 
   return (
     <div className="space-y-10">
@@ -104,6 +118,15 @@ export default function OverviewPage() {
             </span>
           ))}
         </div>
+        {status && (
+          <button
+            onClick={quickStart}
+            disabled={provisioning}
+            className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {provisioning ? "Setting up\u2026" : status.has_subscription ? "Explore Trades \u2192" : "Quick Start \u2192"}
+          </button>
+        )}
       </div>
 
       {status && (
