@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router-dom"
 import { api, StripeConfigStatus } from "../api"
 
 const ALL_NAV = [
+  { to: "/",         label: "Overview" },
   { to: "/trades",   label: "Trades" },
   { to: "/usage",    label: "API Usage" },
   { to: "/billing",  label: "Billing" },
@@ -55,9 +56,12 @@ export default function Layout() {
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-6 flex items-stretch h-12">
 
-          <div className="flex-1 flex items-center">
+          <div className="flex-1 flex items-center gap-2">
             <span className="text-base font-bold text-gray-900 tracking-tight">
-              Unusual Whales
+              UW Billing
+            </span>
+            <span className="text-xs text-gray-400 font-medium hidden sm:inline">
+              Elixir &middot; Phoenix &middot; Stripe
             </span>
           </div>
 
@@ -67,6 +71,7 @@ export default function Layout() {
               return (
                 <NavLink
                   key={to} to={to}
+                  end={to === "/"}
                   className={({ isActive }) =>
                     `flex items-center gap-1.5 text-sm font-medium border-b-2 -mb-px px-1 ` +
                     (isActive
@@ -91,7 +96,10 @@ export default function Layout() {
                 <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
                   {initials}
                 </div>
-                <span className="text-sm text-gray-700">{email}</span>
+                <div className="flex flex-col">
+                  <span className="text-sm text-gray-700 leading-tight">{email}</span>
+                  <span className="text-xs text-gray-400 leading-tight">demo user</span>
+                </div>
               </div>
             )}
           </div>
