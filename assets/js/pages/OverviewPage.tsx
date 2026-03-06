@@ -54,6 +54,30 @@ const TAG_COLORS: Record<FeatureColor, string> = {
   amber: "bg-amber-50 text-amber-700",
 }
 
+interface PipelineStep {
+  label: string
+  sub: string
+}
+
+function PipelineRow({ label, steps }: { label: string; steps: PipelineStep[] }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</div>
+      <div className="flex items-center gap-1.5">
+        {steps.map((step, i) => (
+          <React.Fragment key={step.label}>
+            {i > 0 && <span className="text-gray-300 text-sm shrink-0">&rarr;</span>}
+            <div className="bg-gray-50 border border-gray-200 rounded px-3 py-1.5 text-center flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-800 truncate">{step.label}</div>
+              <div className="text-xs text-gray-400 truncate">{step.sub}</div>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function OverviewPage() {
   const [status, setStatus] = useState<OverviewStatus | null>(null)
 
@@ -129,34 +153,39 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
         <h2 className="text-base font-semibold text-gray-900">Architecture</h2>
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div className="space-y-2">
-            <div className="font-medium text-gray-700">Data Pipeline</div>
-            <p className="text-gray-500 leading-relaxed">
-              Unusual Whales API &rarr; Oban worker (6h poll) &rarr; Ash resources in Postgres
-              &rarr; JSON API &rarr; React table with search/filter. Falls back to SEC EDGAR
-              EFTS when no UW key is configured.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="font-medium text-gray-700">Usage Metering</div>
-            <p className="text-gray-500 leading-relaxed">
-              Every API request hits an ApiUsageLogger plug &rarr; BufferServer GenServer
-              (batches writes) &rarr; ClickHouse. The usage controller queries ClickHouse
-              for daily/endpoint/latency rollups.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="font-medium text-gray-700">Billing Lifecycle</div>
-            <p className="text-gray-500 leading-relaxed">
-              Stripe webhooks &rarr; signature verification &rarr; Oban worker &rarr; Ash state
-              machine (trialing &rarr; active &rarr; paused &rarr; canceled). Plan changes use
-              Stripe&apos;s proration API for upgrades, scheduled subscriptions for
-              downgrades.
-            </p>
-          </div>
+        <div className="space-y-4">
+          <PipelineRow
+            label="Data Pipeline"
+            steps={[
+              { label: "UW API / EDGAR", sub: "data source" },
+              { label: "Oban Worker", sub: "6h poll" },
+              { label: "Postgres", sub: "Ash resources" },
+              { label: "JSON API", sub: "Phoenix" },
+              { label: "React SPA", sub: "TypeScript" },
+            ]}
+          />
+          <PipelineRow
+            label="Usage Metering"
+            steps={[
+              { label: "API Request", sub: "any client" },
+              { label: "Plug Pipeline", sub: "auth + rate limit" },
+              { label: "BufferServer", sub: "GenServer" },
+              { label: "ClickHouse", sub: "analytics" },
+              { label: "Usage Charts", sub: "Recharts" },
+            ]}
+          />
+          <PipelineRow
+            label="Billing Lifecycle"
+            steps={[
+              { label: "Stripe Event", sub: "webhook" },
+              { label: "Sig Verify", sub: "Plug" },
+              { label: "Oban Worker", sub: "async processing" },
+              { label: "State Machine", sub: "Ash states" },
+              { label: "Billing UI", sub: "React" },
+            ]}
+          />
         </div>
       </div>
 
