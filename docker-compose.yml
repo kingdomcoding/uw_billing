@@ -4,31 +4,17 @@ services:
     env_file: .env
     environment:
       PHX_SERVER: "true"
-      DATABASE_URL: "ecto://postgres:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}"
+      DATABASE_URL: "ecto://uw_billing:${POSTGRES_PASSWORD}@shared-postgres/${POSTGRES_DB}"
       CLICKHOUSE_HOST: "clickhouse"
     ports:
       - "${APP_PORT:-4200}:4200"
     depends_on:
-      postgres:
-        condition: service_healthy
       clickhouse:
         condition: service_healthy
     restart: unless-stopped
-
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
+    networks:
+      - default
+      - shared_pg
 
   clickhouse:
     image: clickhouse/clickhouse-server:24
@@ -47,5 +33,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   clickhouse_data:
+
+networks:
+  shared_pg:
+    external: true
